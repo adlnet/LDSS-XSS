@@ -130,11 +130,11 @@ class Term(TimeStampedModel):
         """convert key attributes of the Term to a dict"""
         attrs = {}
         attrs['use'] = self.use
-        if(self.data_type is not None and self.data_type != ''):
+        if self.data_type is not None and self.data_type != '':
             attrs['data_type'] = self.data_type
-        if(self.source is not None and self.source != ''):
+        if self.source is not None and self.source != '':
             attrs['source'] = self.source
-        if(self.description is not None and self.description != ''):
+        if self.description is not None and self.description != '':
             attrs['description'] = self.description
         return {**attrs}
 

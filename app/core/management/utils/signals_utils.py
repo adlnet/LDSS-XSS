@@ -117,6 +117,7 @@ def termset_map(target, source, mapping):
             termset_map(target.children.get(
                 name=kid.replace(' ', '_')), source, mapping[kid])
 
+
 def __traverse_path(termset, path):
     """helper function to traverse the source term sets"""
     for step in path[:-1]:
