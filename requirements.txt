@@ -18,4 +18,6 @@ ddt>=1.4.2,<1.5.0
 
 django-model-utils>=4.1.1,<4.2.0
 
+openlxp-authentication >=1.1.0, <1.2
+
 requests>=2.25.1,<2.26.0

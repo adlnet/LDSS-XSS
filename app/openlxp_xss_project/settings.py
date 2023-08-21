@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'api',
     'users',
+    'social_django',
+    'openlxp_authentication',
 ]
 
 MIDDLEWARE = [
@@ -175,5 +177,58 @@ AUTH_USER_MODEL = 'users.CustomUser'
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
-    ]
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
 }
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'openlxp_authentication.models.SAMLDBAuth',
+)
+
+# openlxp_authentication settings openlxp_authentication documentation:
+# https://github.com/OpenLXP/openlxp-authentication#readme
+# social_django documentation:
+# https://python-social-auth.readthedocs.io/en/latest/index.html
+# SOCIAL_AUTH_STRATEGY = 'openlxp_authentication.models.SAMLDBStrategy'
+JSONFIELD_ENABLED = True
+USER_MODEL = 'users.CustomUser'
+SESSION_EXPIRATION = True
+
+if os.environ.get('LOGIN_REDIRECT_URL') is not None:
+    LOGIN_REDIRECT_URL = os.environ.get('LOGIN_REDIRECT_URL')
+
+if os.environ.get('OVERIDE_HOST') is not None:
+    OVERIDE_HOST = os.environ.get('OVERIDE_HOST')
+    BAD_HOST = os.environ.get('BAD_HOST')
+
+if os.environ.get('STRATEGY') is not None:
+    SOCIAL_AUTH_STRATEGY = os.environ.get('STRATEGY')
+
+SP_ENTITY_ID = os.environ.get('ENTITY_ID')
+
+SP_PUBLIC_CERT = os.environ.get('SP_PUBLIC_CERT')
+SP_PRIVATE_KEY = os.environ.get('SP_PRIVATE_KEY')
+ORG_INFO = {
+    "en-US": {
+        "name": "example",
+        "displayname": "Example Inc.",
+        "url": "http://localhost",
+    }
+}
+TECHNICAL_CONTACT = {
+    "givenName": "Tech Person",
+    "emailAddress": "technical@localhost.com"
+}
+SUPPORT_CONTACT = {
+    "givenName": "Support Person",
+    "emailAddress": "support@localhost.com",
+}
+USER_ATTRIBUTES = [
+    "user_permanent_id",
+    "first_name",
+    "last_name",
+    "email"
+]
