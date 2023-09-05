@@ -7,10 +7,21 @@ from uuid import uuid4
 import clamd
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from model_utils.models import TimeStampedModel
 
 logger = logging.getLogger('dict_config_logger')
+
+
+regex_check = (r'(?!(\A( \x09\x0A\x0D\x20-\x7E # ASCII '
+               r'| \xC2-\xDF # non-overlong 2-byte '
+               r'| \xE0\xA0-\xBF # excluding overlongs '
+               r'| \xE1-\xEC\xEE\xEF{2} # straight 3-byte '
+               r'| \xED\x80-\x9F # excluding surrogates '
+               r'| \xF0\x90-\xBF{2} # planes 1-3 '
+               r'| \xF1-\xF3{3} # planes 4-15 '
+               r'| \xF4\x80-\x8F{2} # plane 16 )*\Z))')
 
 
 def validate_version(value):
@@ -178,7 +189,10 @@ class SchemaLedger(TimeStampedModel):
     status = models.CharField(max_length=255,
                               choices=SCHEMA_STATUS_CHOICES)
     metadata = models.JSONField(blank=True, null=True,
-                                help_text="auto populated from uploaded file")
+                                help_text="auto populated from uploaded file",
+                                validators=[RegexValidator(regex=regex_check,
+                                                           message="Wrong "
+                                                           "Format Entered")])
     version = models.CharField(max_length=255,
                                help_text="auto populated from other version "
                                          "fields")
@@ -262,7 +276,10 @@ class TransformationLedger(TimeStampedModel):
                                            blank=True)
     schema_mapping = \
         models.JSONField(blank=True, null=True,
-                         help_text="auto populated from uploaded file")
+                         help_text="auto populated from uploaded file",
+                         validators=[RegexValidator(regex=regex_check,
+                                                    message="Wrong "
+                                                    "Format Entered")])
     status = models.CharField(max_length=255,
                               choices=SCHEMA_STATUS_CHOICES)
     updated_by = models.ForeignKey(
