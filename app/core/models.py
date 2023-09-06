@@ -3,7 +3,6 @@ import logging
 import os
 import re
 from uuid import uuid4
-from core.management.utils.xss_helper import confusable_homoglyphs_check
 from core.management.utils.xss_helper import bleach_data_to_json
 
 import clamd
