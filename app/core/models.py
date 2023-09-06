@@ -4,9 +4,10 @@ import os
 import re
 from uuid import uuid4
 
+import clamd
 from django.conf import settings
-from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from model_utils.models import TimeStampedModel
 
@@ -187,7 +188,7 @@ class SchemaLedger(TimeStampedModel):
         blank=True)
     status = models.CharField(max_length=255,
                               choices=SCHEMA_STATUS_CHOICES)
-    metadata = models.JSONField(blank=True,
+    metadata = models.JSONField(blank=True, null=True,
                                 help_text="auto populated from uploaded file",
                                 validators=[RegexValidator(regex=regex_check,
                                                            message="Wrong "
@@ -212,20 +213,32 @@ class SchemaLedger(TimeStampedModel):
         return os.path.basename(self.schema_file.name)
 
     def clean(self):
-        # store the contents of the file in the metadata field
-        if self.schema_file:
-            json_file = self.schema_file
-            json_obj = json.load(json_file)  # deserializes it
-
-            self.metadata = json_obj
-            json_file.close()
-            self.schema_file = None
-
         # combine the versions
         version = \
             str(self.major_version) + '.' + str(self.minor_version) \
             + '.' + str(self.patch_version)
         self.version = version
+
+        if self.schema_file:
+            # scan file for malicious payloads
+            cd = clamd.ClamdUnixSocket()
+            json_file = self.schema_file
+            scan_results = cd.instream(json_file)['stream']
+            if 'OK' not in scan_results:
+                for issue_type, issue in [scan_results, ]:
+                    logger.error(
+                        f'{issue_type} {issue} in '
+                        f'xss:{self.version}@{self.schema_name}')
+            # only load json if no issues found
+            else:
+                # rewind buffer
+                json_file.seek(0)
+
+                json_obj = json.load(json_file)  # deserializes it
+
+                self.metadata = json_obj
+            json_file.close()
+            self.schema_file = None
 
     def __str__(self):
         return str(self.schema_iri)
@@ -262,7 +275,7 @@ class TransformationLedger(TimeStampedModel):
                                            null=True,
                                            blank=True)
     schema_mapping = \
-        models.JSONField(blank=True,
+        models.JSONField(blank=True, null=True,
                          help_text="auto populated from uploaded file",
                          validators=[RegexValidator(regex=regex_check,
                                                     message="Wrong "
@@ -276,8 +289,21 @@ class TransformationLedger(TimeStampedModel):
         # store the contents of the file in the schema_mapping field
         if self.schema_mapping_file:
             json_file = self.schema_mapping_file
-            json_obj = json.load(json_file)  # deserializes it
+            # scan file for malicious payloads
+            cd = clamd.ClamdUnixSocket()
+            scan_results = cd.instream(json_file)['stream']
+            if 'OK' not in scan_results:
+                for issue_type, issue in [scan_results, ]:
+                    logger.error(
+                        f'{issue_type} {issue} in transform '
+                        f'{self.source_schema.iri} to '
+                        '{self.target_schema.iri}')
+            # only load json if no issues found
+            else:
+                # rewind buffer
+                json_file.seek(0)
+                json_obj = json.load(json_file)  # deserializes it
 
-            self.schema_mapping = json_obj
+                self.schema_mapping = json_obj
             json_file.close()
             self.schema_mapping_file = None

@@ -12,7 +12,7 @@ logger = logging.getLogger('dict_config_logger')
 
 @receiver(post_save, sender=SchemaLedger)
 def create_term_set(sender, instance, created, **kwargs):
-    if created:
+    if created and instance.metadata is not None:
         termset = TermSet.objects.create(name=instance.schema_name,
                                          version=instance.version,
                                          status=instance.status,
@@ -27,7 +27,7 @@ def create_term_set(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=SchemaLedger)
 def update_term_set(sender, instance, created, **kwargs):
-    if not created:
+    if not created and instance.metadata is not None:
         termset = TermSet.objects.get(iri=instance)
         termset.status = instance.status
         termset.updated_by = instance.updated_by
@@ -39,7 +39,7 @@ def update_term_set(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=TransformationLedger)
 def map_term_sets(sender, instance, created, **kwargs):
-    if created:
+    if created and instance.schema_mapping is not None:
         target = instance.target_schema
         source = instance.source_schema
 
