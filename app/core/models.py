@@ -3,6 +3,7 @@ import logging
 import os
 import re
 from uuid import uuid4
+from core.management.utils.xss_helper import bleach_data_to_json
 
 import clamd
 from django.conf import settings
@@ -236,7 +237,10 @@ class SchemaLedger(TimeStampedModel):
 
                 json_obj = json.load(json_file)  # deserializes it
 
-                self.metadata = json_obj
+                # bleaching/cleaning HTML tags from request data
+                json_bleach = bleach_data_to_json(json_obj)
+
+                self.metadata = json_bleach
             json_file.close()
             self.schema_file = None
 
@@ -304,6 +308,9 @@ class TransformationLedger(TimeStampedModel):
                 json_file.seek(0)
                 json_obj = json.load(json_file)  # deserializes it
 
-                self.schema_mapping = json_obj
+                # bleaching/cleaning HTML tags from request data
+                json_bleach = bleach_data_to_json(json_obj)
+
+                self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
