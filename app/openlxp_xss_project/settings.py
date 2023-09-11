@@ -232,3 +232,11 @@ USER_ATTRIBUTES = [
     "last_name",
     "email"
 ]
+
+# directory to store files during upload scanning
+if os.environ.get('TMP_SCHEMA_DIR') is not None and\
+        len(os.environ.get('TMP_SCHEMA_DIR')) > 0:
+    TMP_SCHEMA_DIR = os.environ.get('TMP_SCHEMA_DIR')
+else:
+    TMP_SCHEMA_DIR = os.path.join(BASE_DIR, 'tmp', 'schemas')
+TMP_SCHEMA_DIR = os.path.join(TMP_SCHEMA_DIR, '')

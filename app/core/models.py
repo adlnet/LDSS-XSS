@@ -2,15 +2,19 @@ import json
 import logging
 import os
 import re
+import secrets
+import string
 from uuid import uuid4
-from core.management.utils.xss_helper import bleach_data_to_json
 
 import clamd
+import magic
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from model_utils.models import TimeStampedModel
+
+from core.management.utils.xss_helper import bleach_data_to_json
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -235,12 +239,37 @@ class SchemaLedger(TimeStampedModel):
                 # rewind buffer
                 json_file.seek(0)
 
-                json_obj = json.load(json_file)  # deserializes it
+                # generate random file name
+                alphabet = string.ascii_letters + string.digits
+                tmp_dir = settings.TMP_SCHEMA_DIR
+                random_name = ''.join(secrets.choice(alphabet)
+                                      for _ in range(8))
+                full_path = tmp_dir + random_name
 
-                # bleaching/cleaning HTML tags from request data
-                json_bleach = bleach_data_to_json(json_obj)
+                json_file.open('rb')
 
-                self.metadata = json_bleach
+                # write to file and use magic to check file type
+                with open(full_path, 'wb') as local_file:
+                    local_file.write(json_file.read())
+                    local_file.flush()
+                    mime_type = magic.from_file(full_path, mime=True)
+
+                # delete file
+                os.remove(full_path)
+                # log issue if file isn't JSON
+                if 'json' not in mime_type.lower():
+                    logger.error('Invalid file type detected. Expected JSON,'
+                                 f' found {mime_type}')
+                else:
+                    # rewind buffer
+                    json_file.open('rt')
+                    json_file.seek(0)
+                    json_obj = json.load(json_file)  # deserializes it
+
+                    # bleaching/cleaning HTML tags from request data
+                    json_bleach = bleach_data_to_json(json_obj)
+
+                    self.metadata = json_bleach
             json_file.close()
             self.schema_file = None
 
@@ -301,16 +330,42 @@ class TransformationLedger(TimeStampedModel):
                     logger.error(
                         f'{issue_type} {issue} in transform '
                         f'{self.source_schema.iri} to '
-                        '{self.target_schema.iri}')
+                        f'{self.target_schema.iri}')
             # only load json if no issues found
             else:
                 # rewind buffer
                 json_file.seek(0)
-                json_obj = json.load(json_file)  # deserializes it
 
-                # bleaching/cleaning HTML tags from request data
-                json_bleach = bleach_data_to_json(json_obj)
+                # generate random file name
+                alphabet = string.ascii_letters + string.digits
+                tmp_dir = settings.TMP_SCHEMA_DIR
+                random_name = ''.join(secrets.choice(alphabet)
+                                      for _ in range(8))
+                full_path = tmp_dir + random_name
 
-                self.schema_mapping = json_bleach
+                json_file.open('rb')
+
+                # write to file and use magic to check file type
+                with open(full_path, 'wb') as local_file:
+                    local_file.write(json_file.read())
+                    local_file.flush()
+                    mime_type = magic.from_file(full_path, mime=True)
+
+                # delete file
+                os.remove(full_path)
+                # log issue if file isn't JSON
+                if 'json' not in mime_type.lower():
+                    logger.error('Invalid file type detected. Expected JSON,'
+                                 f' found {mime_type}')
+                else:
+                    # rewind buffer
+                    json_file.open('rt')
+                    json_file.seek(0)
+                    json_obj = json.load(json_file)  # deserializes it
+
+                    # bleaching/cleaning HTML tags from request data
+                    json_bleach = bleach_data_to_json(json_obj)
+
+                    self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
