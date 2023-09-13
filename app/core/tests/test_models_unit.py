@@ -1,6 +1,9 @@
+import json
 from unittest.mock import patch
 
+from clamd import EICAR
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.test import tag
 
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
@@ -44,6 +47,114 @@ class ModelTests(TestSetUp):
         self.assertEqual(schema.minor_version, minor_version)
         self.assertEqual(schema.patch_version, patch_version)
 
+    def test_schema_ledger_virus(self):
+        """Test that creating a SchemaLedger with a virus fails"""
+
+        schema_name = 'test_name'
+        schema_iri = 'test_iri'
+        status = 'published'
+        version = '1.0.1'
+        major_version = 1
+        minor_version = 0
+        patch_version = 1
+        file = ContentFile(EICAR, 'virus')
+
+        schema = SchemaLedger(schema_name=schema_name,
+                              schema_iri=schema_iri,
+                              status=status,
+                              major_version=major_version,
+                              minor_version=minor_version,
+                              patch_version=patch_version,
+                              schema_file=file)
+
+        with patch('core.models.logger') as log,\
+                patch('core.models.clamd') as clam:
+            clam.instream.return_value = {'stream': ('BAD', 'EICAR')}
+            clam.ClamdUnixSocket.return_value = clam
+
+            self.assertEqual(schema.version, '')
+            self.assertEqual(schema.schema_file.size, len(EICAR))
+            schema.clean()
+            self.assertEqual(schema.version, version)
+            self.assertEqual(schema.schema_file, None)
+            self.assertGreater(log.error.call_count, 0)
+            self.assertIn('EICAR', log.error.call_args[0][0])
+            self.assertGreater(clam.instream.call_count, 0)
+            self.assertEqual(file, clam.instream.call_args[0][0])
+            self.assertIsNone(schema.metadata)
+
+    def test_schema_ledger_non_json(self):
+        """Test that creating a SchemaLedger with a non json file fails"""
+
+        schema_name = 'test_name'
+        schema_iri = 'test_iri'
+        status = 'published'
+        version = '1.0.1'
+        major_version = 1
+        minor_version = 0
+        patch_version = 1
+        file_contents = b'test string'
+        file = ContentFile(file_contents, 'not json')
+
+        schema = SchemaLedger(schema_name=schema_name,
+                              schema_iri=schema_iri,
+                              status=status,
+                              major_version=major_version,
+                              minor_version=minor_version,
+                              patch_version=patch_version,
+                              schema_file=file)
+
+        with patch('core.models.logger') as log,\
+                patch('core.models.clamd') as clam:
+            clam.instream.return_value = {'stream': ('OK', 'OKAY')}
+            clam.ClamdUnixSocket.return_value = clam
+
+            self.assertEqual(schema.version, '')
+            self.assertEqual(schema.schema_file.size, len(file_contents))
+            schema.clean()
+            self.assertEqual(schema.version, version)
+            self.assertEqual(schema.schema_file, None)
+            self.assertGreater(log.error.call_count, 0)
+            self.assertIn('Expected JSON, found text/plain',
+                          log.error.call_args[0][0])
+            self.assertIsNone(schema.metadata)
+
+    def test_schema_ledger_bleach(self):
+        """Test that creating a SchemaLedger with a valid file passes"""
+
+        schema_name = 'test_name'
+        schema_iri = 'test_iri'
+        status = 'published'
+        version = '1.0.1'
+        major_version = 1
+        minor_version = 0
+        patch_version = 1
+        tagged_metadata = {'test': '<em>test</em>'}
+        file_contents = json.dumps(tagged_metadata).encode('ascii')
+        file = ContentFile(file_contents, 'with html tags')
+        metadata = {'test': 'test'}
+
+        schema = SchemaLedger(schema_name=schema_name,
+                              schema_iri=schema_iri,
+                              status=status,
+                              major_version=major_version,
+                              minor_version=minor_version,
+                              patch_version=patch_version,
+                              schema_file=file)
+
+        with patch('core.models.logger') as log,\
+                patch('core.models.clamd') as clam:
+            clam.instream.return_value = {'stream': ('OK', 'OKAY')}
+            clam.ClamdUnixSocket.return_value = clam
+
+            self.assertEqual(schema.version, '')
+            self.assertEqual(schema.schema_file.size, len(file_contents))
+            schema.clean()
+            self.assertEqual(schema.version, version)
+            self.assertEqual(schema.schema_file, None)
+            self.assertEqual(log.error.call_count, 0)
+            self.assertDictEqual(schema.metadata, metadata)
+
     def test_transformation_ledger(self):
         """Test that creating a transformationLedger is successful"""
 
@@ -69,6 +180,97 @@ class ModelTests(TestSetUp):
             self.assertEqual(mapping.target_schema, target_schema_name)
             self.assertEqual(mapping.schema_mapping, schema_mapping)
             self.assertEqual(mapping.status, status)
+
+    def test_transformation_ledger_virus(self):
+        """Test that creating a TransformationLedger with a virus fails"""
+        self.termset.save()
+
+        source_schema_name = self.termset
+        target_schema_name = self.termset
+        file = ContentFile(EICAR, 'virus')
+        status = "published"
+
+        mapping = \
+            TransformationLedger(source_schema=source_schema_name,
+                                 target_schema=target_schema_name,
+                                 schema_mapping_file=file,
+                                 status=status)
+
+        with patch('core.models.logger') as log,\
+                patch('core.models.clamd') as clam:
+            clam.instream.return_value = {'stream': ('BAD', 'EICAR')}
+            clam.ClamdUnixSocket.return_value = clam
+
+            self.assertEqual(mapping.schema_mapping_file.size, len(EICAR))
+            mapping.clean()
+            self.assertEqual(mapping.schema_mapping_file, None)
+            self.assertGreater(log.error.call_count, 0)
+            self.assertIn('EICAR', log.error.call_args[0][0])
+            self.assertGreater(clam.instream.call_count, 0)
+            self.assertEqual(file, clam.instream.call_args[0][0])
+            self.assertIsNone(mapping.schema_mapping)
+
+    def test_transformation_ledger_non_json(self):
+        """Test that creating a TransformationLedger with a non json file fails
+        """
+        self.termset.save()
+
+        source_schema_name = self.termset
+        target_schema_name = self.termset
+        file_contents = b'test string'
+        file = ContentFile(file_contents, 'not json')
+        status = "published"
+
+        mapping = \
+            TransformationLedger(source_schema=source_schema_name,
+                                 target_schema=target_schema_name,
+                                 schema_mapping_file=file,
+                                 status=status)
+
+        with patch('core.models.logger') as log,\
+                patch('core.models.clamd') as clam:
+            clam.instream.return_value = {'stream': ('OK', 'OKAY')}
+            clam.ClamdUnixSocket.return_value = clam
+
+            self.assertEqual(mapping.schema_mapping_file.size,
+                             len(file_contents))
+            mapping.clean()
+            self.assertEqual(mapping.schema_mapping_file, None)
+            self.assertGreater(log.error.call_count, 0)
+            self.assertIn('Expected JSON, found text/plain',
+                          log.error.call_args[0][0])
+            self.assertIsNone(mapping.schema_mapping)
+
+    def test_transformation_ledger_bleach(self):
+        """Test that creating a TransformationLedger with a valid file passes
+        """
+        self.termset.save()
+
+        source_schema_name = self.termset
+        target_schema_name = self.termset
+        tagged_metadata = {'test': '<em>test</em>'}
+        file_contents = json.dumps(tagged_metadata).encode('ascii')
+        file = ContentFile(file_contents, 'with html tags')
+        metadata = {'test': 'test'}
+        status = "published"
+
+        mapping = \
+            TransformationLedger(source_schema=source_schema_name,
+                                 target_schema=target_schema_name,
+                                 schema_mapping_file=file,
+                                 status=status)
+
+        with patch('core.models.logger') as log,\
+                patch('core.models.clamd') as clam:
+            clam.instream.return_value = {'stream': ('OK', 'OKAY')}
+            clam.ClamdUnixSocket.return_value = clam
+
+            self.assertEqual(mapping.schema_mapping_file.size,
+                             len(file_contents))
+            mapping.clean()
+            self.assertEqual(mapping.schema_mapping_file, None)
+            self.assertEqual(log.error.call_count, 0)
+            self.assertDictEqual(mapping.schema_mapping, metadata)
 
     def test_term_set(self):
         """Test that creating a TermSet is successful"""
