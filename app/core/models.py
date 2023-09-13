@@ -232,8 +232,9 @@ class SchemaLedger(TimeStampedModel):
             if 'OK' not in scan_results:
                 for issue_type, issue in [scan_results, ]:
                     logger.error(
-                        f'{issue_type} {issue} in '
-                        f'xss:{self.version}@{self.schema_name}')
+                        '%s %s in xss:%s@%s',
+                        issue_type, issue, self.version, self.schema_name
+                        )
             # only load json if no issues found
             else:
                 # rewind buffer
@@ -258,8 +259,7 @@ class SchemaLedger(TimeStampedModel):
                 os.remove(full_path)
                 # log issue if file isn't JSON
                 if 'json' not in mime_type.lower():
-                    logger.error('Invalid file type detected. Expected JSON,'
-                                 f' found {mime_type}')
+                    logger.error('Invalid file type detected. Expected JSON, found %s', mime_type)
                 else:
                     # rewind buffer
                     json_file.open('rt')
@@ -328,9 +328,9 @@ class TransformationLedger(TimeStampedModel):
             if 'OK' not in scan_results:
                 for issue_type, issue in [scan_results, ]:
                     logger.error(
-                        f'{issue_type} {issue} in transform '
-                        f'{self.source_schema.iri} to '
-                        f'{self.target_schema.iri}')
+                        '%s %s in transform %s to %s',
+                        issue_type, issue, self.source_schema.iri, self.target_schema.iri
+                    )
             # only load json if no issues found
             else:
                 # rewind buffer
@@ -355,8 +355,7 @@ class TransformationLedger(TimeStampedModel):
                 os.remove(full_path)
                 # log issue if file isn't JSON
                 if 'json' not in mime_type.lower():
-                    logger.error('Invalid file type detected. Expected JSON,'
-                                 f' found {mime_type}')
+                    logger.error('Invalid file type detected. Expected JSON, found %s', mime_type)
                 else:
                     # rewind buffer
                     json_file.open('rt')
