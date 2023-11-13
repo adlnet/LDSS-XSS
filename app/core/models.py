@@ -260,7 +260,7 @@ class SchemaLedger(TimeStampedModel):
                 # log issue if file isn't JSON
                 if 'json' not in mime_type.lower():
                     logger.error('Invalid file type detected. Expected JSON, found %s',
-                    mime_type)
+                                  mime_type)
                 else:
                     # rewind buffer
                     json_file.open('rt')
