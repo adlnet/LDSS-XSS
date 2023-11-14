@@ -33,9 +33,9 @@ services:
       ENTITY_ID: "${ENTITY_ID}"
       SP_PUBLIC_CERT: "${SP_PUBLIC_CERT}"
       SP_PRIVATE_KEY: "${SP_PRIVATE_KEY}"
-      BAD_HOST: "${BAD_HOST}"
-      OVERIDE_HOST: "${OVERIDE_HOST}"
-      STRATEGY: "${STRATEGY}"
+      # BAD_HOST: "${BAD_HOST}"
+      # OVERIDE_HOST: "${OVERIDE_HOST}"
+      # STRATEGY: "${STRATEGY}"
     volumes:
       - ./app:/opt/app/openlxp-xss
     depends_on:
