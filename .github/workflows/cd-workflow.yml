@@ -32,6 +32,8 @@ jobs:
         sudo apt-get update 
         sudo apt-get install libxml2-dev libxmlsec1-dev -y --no-install-recommends
         python -m pip install --upgrade pip
+        pip install pycodestyle
+        pycodestyle --max-line-length=105 app/core/models.py
         pip install -r ./requirements.txt
     # Start running test scripts and generate the coverage report
     - name: Generate Coverage Report
