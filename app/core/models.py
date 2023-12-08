@@ -53,7 +53,6 @@ class TermSet(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
-        self.name = self.name.replace(' ', '_')
         self.iri = 'xss:' + self.version + '@' + self.name
         update_fields = kwargs.get('update_fields', None)
         if update_fields:
@@ -92,7 +91,6 @@ class ChildTermSet(TermSet):
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
-        self.name = self.name.replace(' ', '_')
         self.iri = self.parent_term_set.iri + '/' + self.name
         self.version = self.parent_term_set.version
         update_fields = kwargs.get('update_fields', None)
@@ -135,7 +133,6 @@ class Term(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
-        self.name = self.name.replace(' ', '_')
         self.iri = self.term_set.iri + '?' + self.name
         update_fields = kwargs.get('update_fields', None)
         if update_fields:
