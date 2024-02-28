@@ -22,6 +22,8 @@ ddt>=1.4.2,<1.5.0
 
 django-model-utils>=4.1.1,<4.2.0
 
+isort>=5.11.0, <5.12.0
+
 openlxp-authentication >=1.1.0, <1.2
 
 python-magic >=0.4.27, <0.5
