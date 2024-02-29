@@ -2,14 +2,31 @@ import json
 import logging
 import os
 import re
+import secrets
+import string
 from uuid import uuid4
 
+import clamd
+import magic
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from model_utils.models import TimeStampedModel
 
+from core.management.utils.xss_helper import bleach_data_to_json
+
 logger = logging.getLogger('dict_config_logger')
+
+
+regex_check = (r'(?!(\A( \x09\x0A\x0D\x20-\x7E # ASCII '
+               r'| \xC2-\xDF # non-overlong 2-byte '
+               r'| \xE0\xA0-\xBF # excluding overlongs '
+               r'| \xE1-\xEC\xEE\xEF{2} # straight 3-byte '
+               r'| \xED\x80-\x9F # excluding surrogates '
+               r'| \xF0\x90-\xBF{2} # planes 1-3 '
+               r'| \xF1-\xF3{3} # planes 4-15 '
+               r'| \xF4\x80-\x8F{2} # plane 16 )*\Z))')
 
 
 def validate_version(value):
@@ -36,7 +53,6 @@ class TermSet(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
-        self.name = self.name.replace(' ', '_')
         self.iri = 'xss:' + self.version + '@' + self.name
         update_fields = kwargs.get('update_fields', None)
         if update_fields:
@@ -75,7 +91,6 @@ class ChildTermSet(TermSet):
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
-        self.name = self.name.replace(' ', '_')
         self.iri = self.parent_term_set.iri + '/' + self.name
         self.version = self.parent_term_set.version
         update_fields = kwargs.get('update_fields', None)
@@ -118,7 +133,6 @@ class Term(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
-        self.name = self.name.replace(' ', '_')
         self.iri = self.term_set.iri + '?' + self.name
         update_fields = kwargs.get('update_fields', None)
         if update_fields:
@@ -130,11 +144,11 @@ class Term(TimeStampedModel):
         """convert key attributes of the Term to a dict"""
         attrs = {}
         attrs['use'] = self.use
-        if(self.data_type is not None and self.data_type != ''):
+        if self.data_type is not None and self.data_type != '':
             attrs['data_type'] = self.data_type
-        if(self.source is not None and self.source != ''):
+        if self.source is not None and self.source != '':
             attrs['source'] = self.source
-        if(self.description is not None and self.description != ''):
+        if self.description is not None and self.description != '':
             attrs['description'] = self.description
         return {**attrs}
 
@@ -176,8 +190,11 @@ class SchemaLedger(TimeStampedModel):
         blank=True)
     status = models.CharField(max_length=255,
                               choices=SCHEMA_STATUS_CHOICES)
-    metadata = models.JSONField(blank=True,
-                                help_text="auto populated from uploaded file")
+    metadata = models.JSONField(blank=True, null=True,
+                                help_text="auto populated from uploaded file",
+                                validators=[RegexValidator(regex=regex_check,
+                                                           message="Wrong "
+                                                           "Format Entered")])
     version = models.CharField(max_length=255,
                                help_text="auto populated from other version "
                                          "fields")
@@ -198,20 +215,60 @@ class SchemaLedger(TimeStampedModel):
         return os.path.basename(self.schema_file.name)
 
     def clean(self):
-        # store the contents of the file in the metadata field
-        if self.schema_file:
-            json_file = self.schema_file
-            json_obj = json.load(json_file)  # deserializes it
-
-            self.metadata = json_obj
-            json_file.close()
-            self.schema_file = None
-
         # combine the versions
         version = \
             str(self.major_version) + '.' + str(self.minor_version) \
             + '.' + str(self.patch_version)
         self.version = version
+
+        if self.schema_file:
+            # scan file for malicious payloads
+            cd = clamd.ClamdUnixSocket()
+            json_file = self.schema_file
+            scan_results = cd.instream(json_file)['stream']
+            if 'OK' not in scan_results:
+                for issue_type, issue in [scan_results, ]:
+                    logger.error(
+                        '%s %s in xss:%s@%s',
+                        issue_type, issue, self.version, self.schema_name
+                        )
+            # only load json if no issues found
+            else:
+                # rewind buffer
+                json_file.seek(0)
+
+                # generate random file name
+                alphabet = string.ascii_letters + string.digits
+                tmp_dir = settings.TMP_SCHEMA_DIR
+                random_name = ''.join(secrets.choice(alphabet)
+                                      for _ in range(8))
+                full_path = tmp_dir + random_name
+
+                json_file.open('rb')
+
+                # write to file and use magic to check file type
+                with open(full_path, 'wb') as local_file:
+                    local_file.write(json_file.read())
+                    local_file.flush()
+                    mime_type = magic.from_file(full_path, mime=True)
+
+                # delete file
+                os.remove(full_path)
+                # log issue if file isn't JSON
+                if 'json' not in mime_type.lower():
+                    logger.error('Invalid file type detected. Expected JSON, found %s', mime_type)  # noqa: E501
+                else:
+                    # rewind buffer
+                    json_file.open('rt')
+                    json_file.seek(0)
+                    json_obj = json.load(json_file)  # deserializes it
+
+                    # bleaching/cleaning HTML tags from request data
+                    json_bleach = bleach_data_to_json(json_obj)
+
+                    self.metadata = json_bleach
+            json_file.close()
+            self.schema_file = None
 
     def __str__(self):
         return str(self.schema_iri)
@@ -248,8 +305,11 @@ class TransformationLedger(TimeStampedModel):
                                            null=True,
                                            blank=True)
     schema_mapping = \
-        models.JSONField(blank=True,
-                         help_text="auto populated from uploaded file")
+        models.JSONField(blank=True, null=True,
+                         help_text="auto populated from uploaded file",
+                         validators=[RegexValidator(regex=regex_check,
+                                                    message="Wrong "
+                                                    "Format Entered")])
     status = models.CharField(max_length=255,
                               choices=SCHEMA_STATUS_CHOICES)
     updated_by = models.ForeignKey(
@@ -259,8 +319,49 @@ class TransformationLedger(TimeStampedModel):
         # store the contents of the file in the schema_mapping field
         if self.schema_mapping_file:
             json_file = self.schema_mapping_file
-            json_obj = json.load(json_file)  # deserializes it
+            # scan file for malicious payloads
+            cd = clamd.ClamdUnixSocket()
+            scan_results = cd.instream(json_file)['stream']
+            if 'OK' not in scan_results:
+                for issue_type, issue in [scan_results, ]:
+                    logger.error(
+                        '%s %s in transform %s to %s',
+                        issue_type, issue, self.source_schema.iri, self.target_schema.iri  # noqa: E501
+                    )
+            # only load json if no issues found
+            else:
+                # rewind buffer
+                json_file.seek(0)
 
-            self.schema_mapping = json_obj
+                # generate random file name
+                alphabet = string.ascii_letters + string.digits
+                tmp_dir = settings.TMP_SCHEMA_DIR
+                random_name = ''.join(secrets.choice(alphabet)
+                                      for _ in range(8))
+                full_path = tmp_dir + random_name
+
+                json_file.open('rb')
+
+                # write to file and use magic to check file type
+                with open(full_path, 'wb') as local_file:
+                    local_file.write(json_file.read())
+                    local_file.flush()
+                    mime_type = magic.from_file(full_path, mime=True)
+
+                # delete file
+                os.remove(full_path)
+                # log issue if file isn't JSON
+                if 'json' not in mime_type.lower():
+                    logger.error('Invalid file type detected. Expected JSON, found %s', mime_type)  # noqa: E501
+                else:
+                    # rewind buffer
+                    json_file.open('rt')
+                    json_file.seek(0)
+                    json_obj = json.load(json_file)  # deserializes it
+
+                    # bleaching/cleaning HTML tags from request data
+                    json_bleach = bleach_data_to_json(json_obj)
+
+                    self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None

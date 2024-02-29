@@ -30,6 +30,12 @@ services:
       DJANGO_SUPERUSER_PASSWORD: "${DJANGO_SUPERUSER_PASSWORD}"
       DJANGO_SUPERUSER_EMAIL: "${DJANGO_SUPERUSER_EMAIL}"
       SECRET_KEY_VAL: "${SECRET_KEY_VAL}"
+      ENTITY_ID: "${ENTITY_ID}"
+      SP_PUBLIC_CERT: "${SP_PUBLIC_CERT}"
+      SP_PRIVATE_KEY: "${SP_PRIVATE_KEY}"
+      # BAD_HOST: "${BAD_HOST}"
+      # OVERIDE_HOST: "${OVERIDE_HOST}"
+      # STRATEGY: "${STRATEGY}"
     volumes:
       - ./app:/opt/app/openlxp-xss
     depends_on:

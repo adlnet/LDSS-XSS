@@ -6,7 +6,7 @@ from django.test import tag
 from ..management.utils.signals_utils import (create_child_termset,
                                               create_terms, term_object,
                                               termset_object, update_status)
-from ..management.utils.xss_helper import sort_version
+from ..management.utils.xss_helper import bleach_data_to_json, sort_version
 from ..models import ChildTermSet, TermSet
 from .test_setup import TestSetUp
 
@@ -87,3 +87,16 @@ class UtilsTests(TestSetUp):
 
         sort_version(ts_list)
         self.assertEqual(ts_list, [one, two, three])
+
+    def test_bleach(self):
+        """Test function to bleach dicts"""
+        html = "<em>test</em></br>string"
+        clean = "teststring"
+
+        bad_dict = {'outer': {'inner': html}}
+        clean_dict = {'outer': {'inner': clean}}
+
+        returned_dict = bleach_data_to_json(bad_dict)
+
+        self.assertEqual(returned_dict, bad_dict)
+        self.assertDictEqual(clean_dict, returned_dict)

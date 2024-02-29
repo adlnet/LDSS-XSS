@@ -80,18 +80,15 @@ def termset_map(target, source, mapping):
             source_ts = TermSet.objects.get(iri=source.iri)
 
             try:
-                # traverse the source term sets
-                for step in path[:-1]:
-                    source_ts = source_ts.children.get(
-                        name=step.replace(' ', '_'))
+                source_ts = __traverse_path(source_ts, path)
             except Exception:
                 # if one of the child term sets doesn't exist, log and
                 # skip to the next mapping
                 logger.info(f"Source Term Set {mapping[kid]} does not exist")
                 continue
 
-            source_name = path[-1].replace(' ', '_')
-            target_name = kid.replace(' ', '_')
+            source_name = path[-1]
+            target_name = kid
 
             # verify terms exist
             if not target.terms.filter(name=target_name).exists():
@@ -110,7 +107,7 @@ def termset_map(target, source, mapping):
             target_term.save()
 
         # if kid is not a child of target, log and skip to next mapping
-        elif not target.children.filter(name=kid.replace(' ', '_')).exists():
+        elif not target.children.filter(name=kid).exists():
             logger.info(
                 f"Target Term Set {kid} does not exist in {target.iri}")
             continue
@@ -118,4 +115,12 @@ def termset_map(target, source, mapping):
         # else the key is a child term set
         else:
             termset_map(target.children.get(
-                name=kid.replace(' ', '_')), source, mapping[kid])
+                name=kid), source, mapping[kid])
+
+
+def __traverse_path(termset, path):
+    """helper function to traverse the source term sets"""
+    for step in path[:-1]:
+        termset = termset.children.get(
+            name=step)
+    return termset
