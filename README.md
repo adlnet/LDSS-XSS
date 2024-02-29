@@ -1,7 +1,7 @@
 
 # OPENLXP-XSS
 
-## Experience Schema Service
+## Experience Schema Service 
 
 
 The Experience Schema Service maintains referential representations of domain entities, as well as transformational mappings that describe how to convert an entity from one particular schema representation to another.
