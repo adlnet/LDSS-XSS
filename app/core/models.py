@@ -19,6 +19,12 @@ from core.management.utils.xss_helper import bleach_data_to_json
 logger = logging.getLogger('dict_config_logger')
 
 
+data_type_matching = {
+    'str': 'schema:Text',
+    'int': 'schema:Number',
+    'bool': 'schema:Boolean',
+    'datetime': 'schema:DateTime'
+}
 regex_check = (r'(?!(\A( \x09\x0A\x0D\x20-\x7E # ASCII '
                r'| \xC2-\xDF # non-overlong 2-byte '
                r'| \xE0\xA0-\xBF # excluding overlongs '
@@ -66,6 +72,40 @@ class TermSet(TimeStampedModel):
         terms = {term.name: term.export()
                  for term in self.terms.filter(status='published')}
         return {**children, **terms}
+
+    def json_ld(self):
+        """Generate python representation of JSON-LD"""
+        # create graph and context dicts
+        graph = {}
+        context = {}
+        # add elements to graph and context
+        graph['@id'] = 'ldss:' + self.iri
+        graph['@type'] = 'rdfs:Class'
+        graph['rdfs:label'] = self.name
+        context['rdfs'] = 'http://www.w3.org/2000/01/rdf-schema#'
+        if hasattr(self, 'childtermset'):
+            graph['schema:domainIncludes'] = {
+                '@id': 'ldss:' +
+                self.childtermset.parent_term_set.iri}
+            context['schema'] = 'https://schema.org/'
+        # iterate over child term sets and collect their graphs and contexts
+        children = []
+        for kid in self.children.filter(status='published'):
+            kid_ld = kid.json_ld()
+            children.extend(kid_ld['@graph'])
+            # add children's context to current context, but current has
+            # higher priority
+            context = {**kid_ld['@context'], **context}
+        # iterate over terms and collect their graphs and contexts
+        terms = []
+        for term in self.terms.filter(status='published'):
+            term_ld = term.json_ld()
+            terms.extend(term_ld['@graph'])
+            # add terms' context to current context, but current has higher
+            # priority
+            context = {**term_ld['@context'], **context}
+        # return the graph and context
+        return {'@context': context, '@graph': [graph, *children, *terms]}
 
     def mapped_to(self, target_root):
         """Return dict of Terms mapped to anything in target_root string"""
@@ -152,6 +192,32 @@ class Term(TimeStampedModel):
             attrs['description'] = self.description
         return {**attrs}
 
+    def json_ld(self):
+        """Generate python representation of JSON-LD"""
+        # create graph and context dicts
+        graph = {}
+        context = {}
+        # add elements to graph and context
+        graph['@id'] = 'ldss:' + self.iri
+        graph['@type'] = 'rdf:Property'
+        if self.description is not None and len(self.description.strip()) > 0:
+            graph['rdfs:comment'] = self.description
+        if self.data_type is not None and len(self.data_type.strip()) > 0 and\
+                self.data_type in data_type_matching:
+            graph['schema:rangeIncludes'] = {
+                '@id': data_type_matching[self.data_type]}
+        if self.mapping.exists():
+            graph['owl:equivalentProperty'] = [
+                {'@id': 'ldss:' + alt.iri} for alt in self.mapping.all()]
+            context['owl'] = 'http://www.w3.org/2002/07/owl#'
+        graph['rdfs:label'] = self.name
+        graph['schema:domainIncludes'] = {'@id': 'ldss:' + self.term_set.iri}
+        context['schema'] = 'https://schema.org/'
+        context['rdfs'] = 'http://www.w3.org/2000/01/rdf-schema#'
+        context['rdf'] = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+        # return the graph and context
+        return {'@context': context, '@graph': [graph, ]}
+
     def path(self):
         """Get the path of the Term"""
         path = self.name
@@ -231,7 +297,7 @@ class SchemaLedger(TimeStampedModel):
                     logger.error(
                         '%s %s in xss:%s@%s',
                         issue_type, issue, self.version, self.schema_name
-                        )
+                    )
             # only load json if no issues found
             else:
                 # rewind buffer

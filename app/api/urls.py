@@ -8,8 +8,10 @@ router = DefaultRouter()
 app_name = 'api'
 
 urlpatterns = [
-     path('schemas/', views.SchemaLedgerDataView.as_view(),
-          name='schemaledger'),
-     path('mappings/', views.TransformationLedgerDataView.as_view(),
-          name='transformationledger'),
+    path('schemas/', views.SchemaLedgerDataView.as_view(),
+         name='schemaledger'),
+    path('mappings/', views.TransformationLedgerDataView.as_view(),
+         name='transformationledger'),
+    path('json-ld/<path:pk>', views.JSONLDDataView.as_view(),
+         name='json-ld'),
 ]

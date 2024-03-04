@@ -2,7 +2,7 @@ import logging
 
 from rest_framework import serializers
 
-from core.models import SchemaLedger, TermSet, TransformationLedger
+from core.models import SchemaLedger, Term, TermSet, TransformationLedger
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -25,6 +25,26 @@ class TermSetSerializer(serializers.ModelSerializer):
         model = TermSet
 
         fields = ('iri', 'name', 'version', 'schema')
+
+
+class TermSetJSONLDSerializer(serializers.ModelSerializer):
+    """Serializes the TermSet Model"""
+    graph = serializers.DictField(source='json_ld')
+
+    class Meta:
+        model = TermSet
+
+        fields = ('graph',)
+
+
+class TermJSONLDSerializer(serializers.ModelSerializer):
+    """Serializes the TermSet Model"""
+    graph = serializers.DictField(source='json_ld')
+
+    class Meta:
+        model = Term
+
+        fields = ('graph',)
 
 
 class TransformationLedgerSerializer(serializers.ModelSerializer):
