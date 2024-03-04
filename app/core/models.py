@@ -216,7 +216,7 @@ class Term(TimeStampedModel):
         context['rdfs'] = 'http://www.w3.org/2000/01/rdf-schema#'
         context['rdf'] = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
         # return the graph and context
-        return {'@context': context, '@graph': [graph,]}
+        return {'@context': context, '@graph': [graph, ]}
 
     def path(self):
         """Get the path of the Term"""
