@@ -1,14 +1,19 @@
 import logging
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.urls import reverse
 from requests.exceptions import HTTPError
 from rest_framework import status
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, RetrieveAPIView
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
-from api.serializers import TermSetSerializer
+from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
+                             TermSetSerializer)
 from core.management.utils.xss_helper import sort_version
-from core.models import TermSet
+from core.models import Term, TermSet
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -22,6 +27,65 @@ def check_status(messages, queryset):
         logger.error(message)
         raise ObjectDoesNotExist()
     return queryset
+
+
+class JSONLDRenderer(JSONRenderer):
+    """Renderer restricted to JSON-LD"""
+    media_type = 'application/ld+json'
+    format = 'jsonld'
+
+
+class JSONLDDataView(RetrieveAPIView):
+    """Handles HTTP requests to for JSON-LD schemas"""
+    renderer_classes = [JSONLDRenderer, *api_settings.DEFAULT_RENDERER_CLASSES]
+
+    def get_queryset(self):
+        """
+        Determines if the requested object is a Term or TermSet and returns
+        the queryset
+        """
+        # Due to the IRI a term has a '?' so check for a param without a value
+        if self.request.query_params:
+            for _, v in self.request.query_params.items():
+                if len(v) == 0:
+                    return Term.objects.all().filter(status='published')
+        return TermSet.objects.all().filter(status='published')
+
+    def get_serializer_class(self):
+        """
+        Determines if the requested object is a Term or TermSet and returns
+        the serializer
+        """
+        # Due to the IRI a term has a '?' so check for a param without a value
+        if self.request.query_params:
+            for _, v in self.request.query_params.items():
+                if len(v) == 0:
+                    return TermSetJSONLDSerializer
+        return TermJSONLDSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Return a JSON-LD representation of the requested object
+        """
+        # Due to the IRI a term has a '?' so check for a param without a value
+        if self.request.query_params:
+            for k, v in self.request.query_params.items():
+                if len(v) == 0:
+                    self.kwargs['pk'] = self.kwargs['pk'] + \
+                        '?' + k
+                    break
+        # get the specific object and serializer
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        # generated JSON-LD is stored as a python dict labeled 'graph'
+        ld_dict = serializer.data['graph']
+        # build the external URL to this API and add it to the context
+        ldss = request.build_absolute_uri(
+            reverse('api:json-ld', args=[1]))[:-1]
+        if hasattr(settings, 'BAD_HOST') and hasattr(settings, 'OVERIDE_HOST'):
+            ldss = ldss.replace(settings.BAD_HOST, settings.OVERIDE_HOST)
+        ld_dict['@context']['ldss'] = ldss
+        return Response(ld_dict)
 
 
 class SchemaLedgerDataView(GenericAPIView):
@@ -89,14 +153,11 @@ class SchemaLedgerDataView(GenericAPIView):
             logger.error(messages)
             return Response(errorMsg, status.HTTP_400_BAD_REQUEST)
         try:
-            serializer_class = TermSetSerializer(queryset[0])
-            logger.info(queryset[0])
             # only way messages gets sent is if there was
             # an error serializing or in the response process.
             messages.append(
                 "Error fetching records please check the logs.")
-            return Response(serializer_class.data,
-                            status.HTTP_200_OK)
+            return self.handle_response(queryset)
         except ObjectDoesNotExist:
             errorMsg = {
                 "message": messages
@@ -110,6 +171,19 @@ class SchemaLedgerDataView(GenericAPIView):
             logger.error(err)
             return Response(errorMsg,
                             status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def handle_response(self, queryset):
+        serializer_class = TermSetSerializer(queryset[0])
+        logger.info(queryset[0])
+        # could be used to add link header if needed
+        # if 'format' in request.query_params:
+        #     link = '<%s>;' % request.get_full_path().replace(
+        #         request.query_params.get('format'), 'jsonld')
+        # else:
+        #     link = f'<{request.get_full_path()}>;'
+        # link += ' rel="alternate"; type="application/ld+json"'
+        return Response(serializer_class.data,
+                        status.HTTP_200_OK)
 
 
 class TransformationLedgerDataView(GenericAPIView):
