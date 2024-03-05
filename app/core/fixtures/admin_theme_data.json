@@ -3,7 +3,7 @@
         "model": "admin_interface.theme",
         "pk": 1,
         "fields": {
-            "name": "XSS Configuration Portal",
+            "name": "LDSS Configuration Portal",
             "active": true,
             "title": "XSS Configuration Portal",
             "title_color": "#FFFFFF",
