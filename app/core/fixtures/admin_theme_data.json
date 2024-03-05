@@ -5,7 +5,7 @@
         "fields": {
             "name": "LDSS Configuration Portal",
             "active": true,
-            "title": "XSS Configuration Portal",
+            "title": "LDSS Configuration Portal",
             "title_color": "#FFFFFF",
             "title_visible": true,
             "logo": "admin-interface/logo/dodLogo_50.png",
