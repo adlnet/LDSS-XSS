@@ -433,32 +433,3 @@ class TransformationLedger(TimeStampedModel):
                     self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
-
-class Neo4jConfiguration(StructuredNode):
-    neo4j_uri = UniqueProperty(
-        required=True,
-        help_text="Enter the host URI for the Neo4j (Graph Database) instance"
-    )
-    neo4j_user = StringProperty(
-        required=True,
-        help_text="Enter the user ID to connect with Neo4j"
-    )
-    neo4j_password = StringProperty(
-        required=True,
-        help_text="Enter the password to connect with Neo4j"
-    )
-
-    def get_absolute_url(self):
-        """ URL for displaying individual model records."""
-        return reverse('Configuration-detail', args=[str(self.id)])
-
-    def __str__(self):
-        """String for representing the Model object."""
-        return f'{self.id}'
-
-    def save(self, *args, **kwargs):
-        # Check if there's an existing configuration
-        if not self.__primarykey__ and Neo4jConfiguration.nodes.exists():
-            raise ValidationError('Neo4jConfiguration model already exists')
-        return super(Neo4jConfiguration, self).save(*args, **kwargs)
-    

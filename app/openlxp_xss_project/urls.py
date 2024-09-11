@@ -18,10 +18,12 @@ from django.conf.urls import url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from core.views import check_neo4j_connection
 
 urlpatterns = [
     url('', include('openlxp_authentication.urls')),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('api/auth/', include('users.urls')),
+    path('check-neo4j/', check_neo4j_connection),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
