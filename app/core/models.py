@@ -12,12 +12,14 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.urls import reverse
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
 
 logger = logging.getLogger('dict_config_logger')
 
+from neomodel import StructuredNode, UniqueProperty, StringProperty
 
 data_type_matching = {
     'str': 'schema:Text',
@@ -431,3 +433,32 @@ class TransformationLedger(TimeStampedModel):
                     self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
+
+class Neo4jConfiguration(StructuredNode):
+    neo4j_uri = UniqueProperty(
+        required=True,
+        help_text="Enter the host URI for the Neo4j (Graph Database) instance"
+    )
+    neo4j_user = StringProperty(
+        required=True,
+        help_text="Enter the user ID to connect with Neo4j"
+    )
+    neo4j_password = StringProperty(
+        required=True,
+        help_text="Enter the password to connect with Neo4j"
+    )
+
+    def get_absolute_url(self):
+        """ URL for displaying individual model records."""
+        return reverse('Configuration-detail', args=[str(self.id)])
+
+    def __str__(self):
+        """String for representing the Model object."""
+        return f'{self.id}'
+
+    def save(self, *args, **kwargs):
+        # Check if there's an existing configuration
+        if not self.__primarykey__ and Neo4jConfiguration.nodes.exists():
+            raise ValidationError('Neo4jConfiguration model already exists')
+        return super(Neo4jConfiguration, self).save(*args, **kwargs)
+    
