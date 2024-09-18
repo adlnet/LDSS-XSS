@@ -14,10 +14,21 @@ services:
     networks:
       - openlxp
   neo4j:
+    container_name: app-neo4j
     image: neo4j
     ports: 
       - "7474:7474"
       - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+    networks:
+      - openlxp
+  uid-neo4j:
+    container_name: uid-neo4j
+    image: neo4j
+    ports: 
+      - "7475:7474"
+      - "7688:7687"
     environment:
       NEO4J_AUTH: neo4j/password
     networks:
