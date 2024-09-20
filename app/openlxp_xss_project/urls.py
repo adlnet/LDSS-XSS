@@ -26,4 +26,5 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('api/auth/', include('users.urls')),
     path('check-neo4j/', check_neo4j_connection),
+    path('uid/', include('uid.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

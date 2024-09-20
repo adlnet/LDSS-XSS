@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'users',
     'social_django',
     'openlxp_authentication',
+    'uid'
 ]
 
 MIDDLEWARE = [
