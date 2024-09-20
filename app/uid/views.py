@@ -11,11 +11,8 @@ from .models import CounterNode
 # Create your views here.
 def generate_uid(request: HttpRequest):
 
-    counter_node = CounterNode.get()
+    counter_node = CounterNode.increment()
 
-    
-    
-    #uid = f"{count:08x}"
-    
+    uid = f"{counter_node.counter:08x} {counter_node.updated_at}"
 
-    return HttpResponse("{ 'uid': '" + str(counter_node) + " }", content_type='application/json')
+    return HttpResponse("{ 'uid': '" + str(uid) + "' }", content_type='application/json')
