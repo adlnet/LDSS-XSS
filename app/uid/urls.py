@@ -4,5 +4,5 @@ from . import views
 app_name = 'uid'
 
 urlpatterns = [
-    path('generate-uid/', views.generate_uid)
+    path('generate-uid/', views.generate_uid_node)
 ]
