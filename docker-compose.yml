@@ -13,6 +13,15 @@ services:
       # MYSQL_HOST: ''
     networks:
       - openlxp
+  neo4j-xss:
+    image: neo4j:4.2.5
+    ports:
+      - '7687:7687'
+      - '7474:7474'
+    environment:
+      NEO4J_AUTH: neo4j/password
+    networks:
+      - openlxp
   app:
     container_name: openlxp-xss
     build:
