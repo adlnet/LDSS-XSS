@@ -18,9 +18,10 @@ from rest_framework.permissions import AllowAny
 from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
                              TermSetSerializer)
 from core.management.utils.xss_helper import sort_version
-from core.models import Term, TermSet
+from core.models import  TermSet
+from .models import Term
 
-from .utils import create_terms_from_csv, validate_csv
+from .utils import create_terms_from_csv, validate_csv, convert_to_xml
 
 import pandas as pd
 
@@ -337,29 +338,48 @@ class TransformationLedgerDataView(GenericAPIView):
         return queryset
 
 
-class CSVUploadView(APIView):
+class ImportCSVView(APIView):
     permission_classes = [AllowAny]
     required_columns = ['Term', 'Definition', 'Context', 'Context Description']
     @csrf_exempt
     def post(self, request: HttpRequest):
-        csv_file = request.FILES.get('file')  # Assuming the file is sent with key 'file'
-
-        if not csv_file:
-            return JsonResponse({'error': 'No file provided.'}, status=400)
-
-        # Validate the CSV file
-        validation_result = validate_csv(csv_file)
-        if validation_result['error']:
-            return JsonResponse(validation_result, status=400)
-
-        create_terms_from_csv(csv_file)
-
-        return JsonResponse({'message': 'CSV file is valid'}, status=200)
+        try:
+            csv_file = request.FILES.get('file')  # Assuming the file is sent with key 'file'
+            if not csv_file:
+                return JsonResponse({'error': 'No file provided.'}, status=400)
+            validation_result = validate_csv(csv_file)
+            logger.info(f'Validation result: {validation_result}')
+            if validation_result['error']:
+                return JsonResponse(validation_result, status=400)
+            logger.info(f'{csv_file}')
+            create_terms_from_csv(validation_result['data_frame'])
+            logger.info('CSV file uploaded successfully')
+            return JsonResponse({'message': 'CSV file is valid'}, status=200)
+        except Exception as e:
+            logger.error(f'Error uploading CSV file: {str(e)}')
+            return JsonResponse({'error': 'Internal Server error'}, status=500)
+        
+class ExportTermsView(APIView):
+    permission_classes = [AllowAny]
     @csrf_exempt
     def get(self, request: HttpRequest):
-        if request.method == 'GET':
+        try: 
 
-            if request.GET.get('format') == 'json':
-                
+            terms = Term.nodes.all()
 
-            return JsonResponse({'message': 'GET request received'}, status=200)
+            terms_data = [{
+                       "term": term.term, 
+                       "definition": term.definition, 
+                       "context": term.context, 
+                       "context_description": term.context_description} 
+                       for term in terms
+                       ]
+            
+            if request.data.get('format') == 'xml':
+                logger.info('Exporting terms to XML')
+                return convert_to_xml(terms_data)
+                 
+            logger.info('Exporting terms to JSON')
+            return JsonResponse({'terms': terms_data}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)

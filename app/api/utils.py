@@ -1,13 +1,20 @@
 import pandas as pd
 from .models import Term
+import xml.etree.ElementTree as ET
+from django.http import HttpResponse
+import logging
 
+logger = logging.getLogger('dict_config_logger')
 REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
 
 def validate_csv(csv_file):
         missing_rows = []
         
         try:
+            logger.info(f'Validating CSV file...')
             df = pd.read_csv(csv_file)
+            logger.info(f'{len(df)} rows found in CSV file.')
+            
         except pd.errors.EmptyDataError:
             return {'error': 'The CSV file is empty.', 'missing_rows': []}
         except pd.errors.ParserError:
@@ -28,15 +35,39 @@ def validate_csv(csv_file):
         if missing_rows:
             return {'error': 'Some rows are missing required data.', 'missing_rows': missing_rows}
 
-        return {'error': None, 'missing_rows': []}
+        return {'error': None, 'data_frame': df, 'missing_rows': []}
 
-def create_terms_from_csv(csv_file):
-
-        df = pd.read_csv(csv_file)
-
+def create_terms_from_csv(df):
+    try:
+        logger.info(f'Creating terms from CSV file...')
+        logger.info(f'{len(df)} rows found in data frame file.')
         for index, row in df.iterrows():
+            logger.info(f"This is the term for index { index }  {row['Term']}")
+
             term = Term(term = row['Term'],
                         definition = row['Definition'],
                         context = row['Context'],
                         context_description = row['Context Description'])
             term.save()
+        logger.info(f'{len(df)} terms created from CSV file.')
+    except Exception as e:
+        logger.error(f'Error creating terms from CSV file: {str(e)}')
+        return {'error': str(e)}
+
+def convert_to_xml( data):
+    try:    
+        root = ET.Element("terms")
+        
+        for term_data in data:
+            term_elem = ET.SubElement(root, "term")
+            
+            for key, value in term_data.items():
+                child_elem = ET.SubElement(term_elem, key)
+                child_elem.text = value
+        
+        # Generate the XML string
+        xml_data = ET.tostring(root, encoding='utf-8')
+        logger.info(f'XML data generated: {xml_data}')
+        return HttpResponse(xml_data, content_type="application/xml")
+    except Exception as e:
+        return {'error': str(e)}

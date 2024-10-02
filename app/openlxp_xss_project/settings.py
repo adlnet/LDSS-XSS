@@ -15,6 +15,9 @@ import os
 import sys
 from pathlib import Path
 
+from neomodel import config
+config.DATABASE_URL = os.environ.get('NEO4J_URL', 'bolt://neo4j:password@neo4j:7687')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
