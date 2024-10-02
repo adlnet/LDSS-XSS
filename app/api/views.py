@@ -3,17 +3,26 @@ import logging
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
+from django.http import HttpRequest, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import HTTPError
 from rest_framework import status
 from rest_framework.generics import GenericAPIView, RetrieveAPIView
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+
 
 from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
                              TermSetSerializer)
 from core.management.utils.xss_helper import sort_version
 from core.models import Term, TermSet
+
+from .utils import create_terms_from_csv, validate_csv
+
+import pandas as pd
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -326,3 +335,31 @@ class TransformationLedgerDataView(GenericAPIView):
                                 "with the iri '" + target_iri + "'")
                 raise ObjectDoesNotExist()
         return queryset
+
+
+class CSVUploadView(APIView):
+    permission_classes = [AllowAny]
+    required_columns = ['Term', 'Definition', 'Context', 'Context Description']
+    @csrf_exempt
+    def post(self, request: HttpRequest):
+        csv_file = request.FILES.get('file')  # Assuming the file is sent with key 'file'
+
+        if not csv_file:
+            return JsonResponse({'error': 'No file provided.'}, status=400)
+
+        # Validate the CSV file
+        validation_result = validate_csv(csv_file)
+        if validation_result['error']:
+            return JsonResponse(validation_result, status=400)
+
+        create_terms_from_csv(csv_file)
+
+        return JsonResponse({'message': 'CSV file is valid'}, status=200)
+    @csrf_exempt
+    def get(self, request: HttpRequest):
+        if request.method == 'GET':
+
+            if request.GET.get('format') == 'json':
+                
+
+            return JsonResponse({'message': 'GET request received'}, status=200)
