@@ -348,10 +348,8 @@ class ImportCSVView(APIView):
             if not csv_file:
                 return JsonResponse({'error': 'No file provided.'}, status=400)
             validation_result = validate_csv(csv_file)
-            logger.info(f'Validation result: {validation_result}')
             if validation_result['error']:
                 return JsonResponse(validation_result, status=400)
-            logger.info(f'{csv_file}')
             create_terms_from_csv(validation_result['data_frame'])
             logger.info('CSV file uploaded successfully')
             return JsonResponse({'message': 'CSV file is valid'}, status=200)

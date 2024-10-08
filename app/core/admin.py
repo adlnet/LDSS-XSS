@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
+from api.models import NeoTerm
 
 
 # Register your models here.
@@ -87,7 +88,7 @@ class ChildTermSetAdmin(TermSetAdmin):
 class TermAdmin(admin.ModelAdmin):
     """Admin form for the Term model"""
     list_display = ('iri', 'status', 'term_set', 'updated_by',
-                    'modified', )
+                    'modified',)
     fieldsets = (
         (None, {'fields': ('iri', 'name', 'uuid', 'description', 'status',)}),
         ('Info', {'fields': ('data_type', 'use', 'source',)}),
