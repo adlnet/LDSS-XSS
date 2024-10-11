@@ -19,7 +19,6 @@ from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
                              TermSetSerializer)
 from core.management.utils.xss_helper import sort_version
 from core.models import  TermSet
-from .models import Term
 
 from .utils import create_terms_from_csv, validate_csv, convert_to_xml
 
@@ -363,7 +362,7 @@ class ExportTermsView(APIView):
     def get(self, request: HttpRequest):
         try: 
 
-            terms = Term.nodes.all()
+            terms = NeoTerm.nodes.all()
 
             terms_data = [{
                        "term": term.term, 

@@ -1,5 +1,5 @@
 import pandas as pd
-from .models import Term
+
 import xml.etree.ElementTree as ET
 from django.http import HttpResponse
 import logging
@@ -44,7 +44,7 @@ def create_terms_from_csv(df):
         for index, row in df.iterrows():
             logger.info(f"This is the term for index { index }  {row['Term']}")
 
-            term = Term(term = row['Term'],
+            term = NeoTerm(term = row['Term'],
                         definition = row['Definition'],
                         context = row['Context'],
                         context_description = row['Context Description'])
@@ -54,7 +54,7 @@ def create_terms_from_csv(df):
         logger.error(f'Error creating terms from CSV file: {str(e)}')
         return {'error': str(e)}
 
-def convert_to_xml( data):
+def convert_to_xml(data):
     try:    
         root = ET.Element("terms")
         
