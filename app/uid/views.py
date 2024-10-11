@@ -3,10 +3,9 @@ from django.http import HttpResponse, HttpRequest
 from uuid import uuid5, NAMESPACE_URL
 import json
 from neomodel import db
-from .models import CounterNode, UIDNode
+from .models import CounterNode, UIDNode, Provider, LCVTerm
 from .forms import ProviderForm, LCVTermForm
 from django.http import JsonResponse
-from .models import Provider, LCVTerm
 
 MAX_CHILDREN = 2**32 -1
 

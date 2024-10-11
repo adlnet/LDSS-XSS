@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'api',
     'users',
     'social_django',
+    'uid',
     'openlxp_authentication',
 ]
 
