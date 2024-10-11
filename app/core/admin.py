@@ -161,7 +161,7 @@ class NeoTermAdmin(admin.ModelAdmin):
                         messages.error(request, result['error'])
                     else:
                         messages.success(request, 'CSV file uploaded successfully.')
-                    return HttpResponseRedirect('.')
+                        return HttpResponseRedirect('/admin/core/neoterm/')
         else:
             form = CSVUploadForm()
         return render(request, 'upload_csv.html', {'form': form})
