@@ -10,6 +10,11 @@ logger = logging.getLogger('dict_config_logger')
 
 def export_terms_as_json(request):
     terms = NeoTerm.nodes.all()
+
+    if not terms:
+        messages.error(request, "There is no data to export.")
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+    
     data = []
     for term in terms:
         data.append({
@@ -26,6 +31,11 @@ def export_terms_as_json(request):
 
 def export_terms_as_xml(request):
         terms = NeoTerm.nodes.all()
+
+        if not terms:
+            messages.error(request, "There is no data to export.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+
         data = [{'term': term.term, 'definition': term.definition, 'context': term.context, 'context_description': term.context_description} for term in terms]
         
         xml_output = convert_to_xml(data)

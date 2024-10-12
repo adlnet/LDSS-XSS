@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django import forms
-from django.urls import path
+from django.urls import path, reverse
 from django.shortcuts import render
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 import xml.etree.ElementTree as ET
@@ -161,12 +161,15 @@ class NeoTermAdmin(admin.ModelAdmin):
                         messages.error(request, result['error'])
                     else:
                         messages.success(request, 'CSV file uploaded successfully.')
-                        return HttpResponseRedirect('/admin/core/neoterm/')
+                    return HttpResponseRedirect(reverse('admin:core_neoterm_changelist'))
         else:
             form = CSVUploadForm()
         return render(request, 'upload_csv.html', {'form': form})
 
     def validate_csv_file(self, csv_file):
+        if not csv_file.name.endswith('.csv'):
+            return {'error': 'The file extension is not .csv', 'missing_rows': []}
+
         REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
         missing_rows = []
         
