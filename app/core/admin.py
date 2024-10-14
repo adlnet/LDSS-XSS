@@ -149,12 +149,17 @@ class NeoTermAdmin(admin.ModelAdmin):
             if form.is_valid():
                 csv_file = form.cleaned_data['csv_file']
                 data = self.validate_csv_file(csv_file)
+
+                # Check for missing columns
+                if data['missing_columns']:
+                    messages.error(request, f"Missing required columns: {', '.join(data['missing_columns'])}")
+                    return render(request, 'upload_csv.html', {'form': form})
+
+                # Check for missing data in rows
                 if data['error']:
                     if data['missing_rows']:
-                        messages.error(request, data['error'])
                         for row in data['missing_rows']:
-                            messages.error(request, f'Row {row["row_index"]}: Missing data in column {row["column"]}')
-                    messages.error(request, data['error'])
+                            messages.error(request, f"Missing data in column '{row['column']}' for row {', '.join(map(str, row['row_indices']))}")
                 else:
                     result = self.create_terms_from_csv(data['data_frame'])
                     if result['error']:
@@ -168,38 +173,44 @@ class NeoTermAdmin(admin.ModelAdmin):
 
     def validate_csv_file(self, csv_file):
         if not csv_file.name.endswith('.csv'):
-            return {'error': 'The file extension is not .csv', 'missing_rows': []}
+            return {'error': 'The file extension is not .csv', 'missing_rows': [], 'missing_columns': []}
 
         REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
-        missing_rows = []
-        
+        missing_rows = {}
+        missing_columns = []
 
         try:
-            logger.info(f'Validating CSV file...')
+            logger.info('Validating CSV file...')
             df = pd.read_csv(csv_file)
             logger.info(f'{len(df)} rows found in CSV file.')
             
         except pd.errors.EmptyDataError:
-            return {'error': 'The CSV file is empty.', 'missing_rows': []}
+            return {'error': 'The CSV file is empty.', 'missing_rows': [], 'missing_columns': []}
         except pd.errors.ParserError:
-            return {'error': 'The CSV file is malformed or not valid.', 'missing_rows': []}
+            return {'error': 'The CSV file is malformed or not valid.', 'missing_rows': [], 'missing_columns': []}
         
         # Check for required columns
         for column in REQUIRED_COLUMNS:
             if column not in df.columns:
-                return {'error': f'Missing required column: {column}', 'missing_rows': []}
+                missing_columns.append(column)
+
+        if missing_columns:
+            return {'error': 'Missing required columns.', 'missing_rows': [], 'missing_columns': missing_columns}
 
         # Check for rows with missing data
         for index, row in df.iterrows():
             for column in REQUIRED_COLUMNS:
-                if pd.isna(row[column]) or row[column] == '' or row[column] == ' ':
-                    missing_rows.append({'row_index': index + 1, 'column': column})
+                if pd.isna(row[column]) or row[column].strip() == '':
+                    if column not in missing_rows:
+                        missing_rows[column] = []
+                    missing_rows[column].append(index + 1)
 
         # If missing_rows is not empty, return them with error message
         if missing_rows:
-            return {'error': 'Some rows are missing required data.', 'missing_rows': missing_rows}
+            aggregated_missing_rows = [{'column': column, 'row_indices': indices} for column, indices in missing_rows.items()]
+            return {'error': 'Some rows are missing required data.', 'missing_rows': aggregated_missing_rows, 'missing_columns': []}
 
-        return {'error': None, 'data_frame': df, 'missing_rows': []}
+        return {'error': None, 'data_frame': df, 'missing_rows': [], 'missing_columns': []}
 
     def create_terms_from_csv(self, df):
         try:
