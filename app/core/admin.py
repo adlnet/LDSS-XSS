@@ -5,6 +5,7 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 import xml.etree.ElementTree as ET
 
+from core.exceptions import MissingColumnsError, MissingRowsError, TermCreationError
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger, NeoTerm)
 from .views import export_terms_as_json, export_terms_as_xml
@@ -132,6 +133,11 @@ class NeoTermAdmin(admin.ModelAdmin):
     change_list_template = 'admin/neoterm_change_list.html'
     actions = ['export_as_json', 'export_as_xml', 'upload_csv']
 
+    REQUIRED_COLUMNS = [
+        field.name.replace("_", " ").title() for field in NeoTerm._meta.get_fields()
+        if hasattr(field, 'required') and field.required
+    ]
+
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
@@ -143,91 +149,89 @@ class NeoTermAdmin(admin.ModelAdmin):
     
 
     def upload_csv(self, request):
-        logger.info(f'Uploading CSV file...')
+        logger.info('Uploading CSV file...')
         if request.method == 'POST':
             form = CSVUploadForm(request.POST, request.FILES)
             if form.is_valid():
                 csv_file = form.cleaned_data['csv_file']
-                data = self.validate_csv_file(csv_file)
-
-                # Check for missing columns
-                if data['missing_columns']:
-                    messages.error(request, f"Missing required columns: {', '.join(data['missing_columns'])}")
-                    return render(request, 'upload_csv.html', {'form': form})
-
-                # Check for missing data in rows
-                if data['error']:
-                    if data['missing_rows']:
-                        for row in data['missing_rows']:
-                            messages.error(request, f"Missing data in column '{row['column']}' for row {', '.join(map(str, row['row_indices']))}")
-                else:
-                    result = self.create_terms_from_csv(data['data_frame'])
-                    if result['error']:
-                        messages.error(request, result['error'])
-                    else:
-                        messages.success(request, 'CSV file uploaded successfully.')
+                try:
+                    data = self.validate_csv_file(csv_file)
+                    self.create_terms_from_csv(data['data_frame'])
+                    messages.success(request, 'CSV file uploaded successfully.')
                     return HttpResponseRedirect(reverse('admin:core_neoterm_changelist'))
+
+                except MissingColumnsError as e:
+                    messages.error(request, f"Missing required columns: {', '.join(e.missing_columns)}")
+                except MissingRowsError as e:
+                    for row in e.missing_rows:
+                        indices_message = ', '.join(map(str, row['row_indices'][:5])) + (' and more' if len(row['row_indices']) > 5 else '')
+                        messages.error(request, f"Missing data in column '{row['column']}' for row {indices_message}")
+                except TermCreationError as e:
+                    messages.error(request, "Error creating terms from CSV file.")
+                except Exception as e:
+                    messages.error(request, str(e))
+
         else:
             form = CSVUploadForm()
         return render(request, 'upload_csv.html', {'form': form})
 
     def validate_csv_file(self, csv_file):
         if not csv_file.name.endswith('.csv'):
-            return {'error': 'The file extension is not .csv', 'missing_rows': [], 'missing_columns': []}
-
-        REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
-        missing_rows = {}
-        missing_columns = []
+            raise ValueError('The file extension is not .csv')
 
         try:
             logger.info('Validating CSV file...')
             df = pd.read_csv(csv_file)
             logger.info(f'{len(df)} rows found in CSV file.')
-            
         except pd.errors.EmptyDataError:
-            return {'error': 'The CSV file is empty.', 'missing_rows': [], 'missing_columns': []}
+            raise ValueError('The CSV file is empty.')
         except pd.errors.ParserError:
-            return {'error': 'The CSV file is malformed or not valid.', 'missing_rows': [], 'missing_columns': []}
-        
-        # Check for required columns
-        for column in REQUIRED_COLUMNS:
-            if column not in df.columns:
-                missing_columns.append(column)
+            raise ValueError('The CSV file is malformed or not valid.')
 
+        missing_columns = self.check_missing_columns(df)
         if missing_columns:
-            return {'error': 'Missing required columns.', 'missing_rows': [], 'missing_columns': missing_columns}
+            raise MissingColumnsError(missing_columns)
 
-        # Check for rows with missing data
+        missing_rows = self.check_missing_rows(df)
+        if missing_rows:
+            raise MissingRowsError(missing_rows)
+
+        return {'data_frame': df}
+    
+    def check_missing_columns(self, df):
+        missing_columns = [col for col in NeoTermAdmin.REQUIRED_COLUMNS if col not in df.columns]
+        return missing_columns
+
+    def check_missing_rows(self, df):
+        missing_rows = {}
+
         for index, row in df.iterrows():
-            for column in REQUIRED_COLUMNS:
+            for column in NeoTermAdmin.REQUIRED_COLUMNS:
                 if pd.isna(row[column]) or row[column].strip() == '':
                     if column not in missing_rows:
                         missing_rows[column] = []
                     missing_rows[column].append(index + 1)
 
-        # If missing_rows is not empty, return them with error message
-        if missing_rows:
-            aggregated_missing_rows = [{'column': column, 'row_indices': indices} for column, indices in missing_rows.items()]
-            return {'error': 'Some rows are missing required data.', 'missing_rows': aggregated_missing_rows, 'missing_columns': []}
-
-        return {'error': None, 'data_frame': df, 'missing_rows': [], 'missing_columns': []}
+        return [{'column': column, 'row_indices': indices} for column, indices in missing_rows.items()]
 
     def create_terms_from_csv(self, df):
-        try:
-            logger.info(f'Creating terms from CSV file...')
-            logger.info(f'{len(df)} rows found in data frame file.')
-            for index, row in df.iterrows():
-                logger.info(f"This is the term for index { index }  {row['Term']}")
+        logger.info('Creating terms from CSV file...')
+        logger.info(f'{len(df)} rows found in data frame file.')
 
-                term = NeoTerm(term = row['Term'],
-                        definition = row['Definition'],
-                        context = row['Context'],
-                        context_description = row['Context Description'])
+        for index, row in df.iterrows():
+            try:
+                logger.info(f"This is the term for index {index}: {row['Term']}")
+                term = NeoTerm(
+                    term=row['Term'],
+                    definition=row['Definition'],
+                    context=row['Context'],
+                    context_description=row['Context Description']
+                )
                 term.save()
-            logger.info(f'{len(df)} terms created from CSV file.')
-            return {'error': None}
-        except Exception as e:
-            logger.error(f'Error creating terms from CSV file: {str(e)}')
-            return {'error': str(e)}
+            except Exception as e:
+                logger.error(f'Error creating term for index {index}: {str(e)}')
+                raise TermCreationError(f'Failed to create term for row {index + 1}: {str(e)}')
+
+        logger.info(f'{len(df)} terms created from CSV file.')
 
 neo_admin.register(NeoTerm, NeoTermAdmin)
