@@ -436,7 +436,7 @@ class TransformationLedger(TimeStampedModel):
 
 class NeoTerm(DjangoNode):
 
-    uid = UniqueIdProperty()
+    uid = UniqueIdProperty() # Should be replaced or removed at some point based on UID work
     term = StringProperty(required=True)
     definition = StringProperty(required=True)
     context = StringProperty(required=True)

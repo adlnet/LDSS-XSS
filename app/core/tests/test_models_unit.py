@@ -1,5 +1,6 @@
 import json
 from unittest.mock import mock_open, patch
+import unittest
 
 from clamd import EICAR
 from django.core.exceptions import ValidationError
@@ -7,7 +8,9 @@ from django.core.files.base import ContentFile
 from django.test import tag
 
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
-                         TransformationLedger, validate_version)
+                         TransformationLedger, validate_version, NeoTerm)
+
+from neomodel import db
 
 from .test_setup import TestSetUp
 
@@ -362,3 +365,61 @@ class ModelTests(TestSetUp):
     def test_validate_version_fail(self):
         """Test that validate version fails bad formats"""
         self.assertRaises(ValidationError, validate_version, "0.0..1")
+
+
+@tag('unit')
+class NeoTermTests(unittest.TestCase):
+
+    @patch('core.models.NeoTerm.save')
+    def test_create_neoterm(self, mock_save):
+        term = NeoTerm(term='test', 
+                       definition='This is the definition of the test term',
+                       context='testContext1', 
+                       context_description='This is the description of the context')
+        
+        term.save()
+
+        self.assertIsNotNone(term.uid)
+        self.assertEqual(term.term, 'test')
+        self.assertEqual(term.definition, 'This is the definition of the test term')
+        self.assertEqual(term.context, 'testContext1')
+        self.assertEqual(term.context_description, 'This is the description of the context')
+        self.assertTrue(mock_save.called)
+        mock_save.assert_called_once()
+
+    @patch('core.models.NeoTerm.save')
+    def test_required_fields(self, mock_save):
+        term = NeoTerm(term='test', 
+                       definition='This is the definition of the test term',
+                       context='testContext1', 
+                       context_description='This is the description of the context')
+        
+        term.save()
+
+        self.assertIsNotNone(term.uid)
+        self.assertEqual(term.term, 'test')
+        self.assertEqual(term.definition, 'This is the definition of the test term')
+        self.assertEqual(term.context, 'testContext1')
+        self.assertEqual(term.context_description, 'This is the description of the context')
+        self.assertTrue(mock_save.called)
+        mock_save.assert_called_once()
+
+    @patch('core.models.NeoTerm.save')
+    def test_required_fields(self, mock_save):
+        """Test that required fields raise exceptions if not provided."""
+        with self.assertRaises(ValueError):
+            NeoTerm(term='', definition='Test Definition',
+                    context='Test Context', context_description='Test Context Description').save()
+
+        with self.assertRaises(ValueError):
+            NeoTerm(term='Test Term', definition='',
+                    context='Test Context', context_description='Test Context Description').save()
+
+        with self.assertRaises(ValueError):
+            NeoTerm(term='Test Term', definition='Test Definition',
+                    context='', context_description='Test Context Description').save()
+
+        with self.assertRaises(ValueError):
+            NeoTerm(term='Test Term', definition='Test Definition',
+                    context='Test Context', context_description='').save()
+        
