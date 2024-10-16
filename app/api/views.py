@@ -3,17 +3,26 @@ import logging
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
+from django.http import HttpRequest, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import HTTPError
 from rest_framework import status
 from rest_framework.generics import GenericAPIView, RetrieveAPIView
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+
 
 from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
                              TermSetSerializer)
 from core.management.utils.xss_helper import sort_version
-from core.models import Term, TermSet
+from core.models import  TermSet
+
+from .utils import create_terms_from_csv, validate_csv, convert_to_xml
+
+import pandas as pd
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -326,3 +335,48 @@ class TransformationLedgerDataView(GenericAPIView):
                                 "with the iri '" + target_iri + "'")
                 raise ObjectDoesNotExist()
         return queryset
+
+
+class ImportCSVView(APIView):
+    permission_classes = [AllowAny]
+    required_columns = ['Term', 'Definition', 'Context', 'Context Description']
+    @csrf_exempt
+    def post(self, request: HttpRequest):
+        try:
+            csv_file = request.FILES.get('file')  # Assuming the file is sent with key 'file'
+            if not csv_file:
+                return JsonResponse({'error': 'No file provided.'}, status=400)
+            validation_result = validate_csv(csv_file)
+            if validation_result['error']:
+                return JsonResponse(validation_result, status=400)
+            create_terms_from_csv(validation_result['data_frame'])
+            logger.info('CSV file uploaded successfully')
+            return JsonResponse({'message': 'CSV file is valid'}, status=200)
+        except Exception as e:
+            logger.error(f'Error uploading CSV file: {str(e)}')
+            return JsonResponse({'error': 'Internal Server error'}, status=500)
+        
+class ExportTermsView(APIView):
+    permission_classes = [AllowAny]
+    @csrf_exempt
+    def get(self, request: HttpRequest):
+        try: 
+
+            terms = NeoTerm.nodes.all()
+
+            terms_data = [{
+                       "term": term.term, 
+                       "definition": term.definition, 
+                       "context": term.context, 
+                       "context_description": term.context_description} 
+                       for term in terms
+                       ]
+            
+            if request.data.get('format') == 'xml':
+                logger.info('Exporting terms to XML')
+                return convert_to_xml(terms_data)
+                 
+            logger.info('Exporting terms to JSON')
+            return JsonResponse({'terms': terms_data}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
