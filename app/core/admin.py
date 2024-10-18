@@ -3,7 +3,7 @@ from django.contrib import admin
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
-from core.models import AliasNode, ContextNode, DefinitionNode
+from core.models import NeoAlias, NeoContext, NeoDefinition
 
 
 # Register your models here.
@@ -118,16 +118,16 @@ class AliasNodeAdmin(admin.ModelAdmin):
     readonly_fields = ('alias', 'term')
 
 
-neomodel_admin.register(AliasNode, AliasNodeAdmin)
+neomodel_admin.register(NeoAlias, AliasNodeAdmin)
 
 class ContextNodeAdmin(admin.ModelAdmin):
     list_display = ('context', 'context_description')
     readonly_fields = ('context', 'context_description')
 
-neomodel_admin.register(ContextNode, ContextNodeAdmin)
+neomodel_admin.register(NeoContext, ContextNodeAdmin)
 
 class DefinitionNodeAdmin(admin.ModelAdmin):
     list_display = ('definition')
     readonly_fields = ('definition')
 
-neomodel_admin.register(DefinitionNode, DefinitionNodeAdmin)
+neomodel_admin.register(NeoDefinition, DefinitionNodeAdmin)
