@@ -15,6 +15,8 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom
+from django_neomodel import DjangoNode
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -431,3 +433,30 @@ class TransformationLedger(TimeStampedModel):
                     self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
+
+class NeoTerm(DjangoNode):
+    uid = StringProperty(unique_index=True)
+    term = StringProperty(required=True)
+    definition = RelationshipTo('DefinitionNode', 'DEFINITION_OF')
+
+class NeoAlias(DjangoNode):
+
+    alias = StringProperty(unique_index=True)
+    term = RelationshipFrom('TermNode', 'ALIAS_OF')
+    context = RelationshipTo('ContextNode', 'ALIAS_TO')
+
+
+class NeoContext(DjangoNode):
+
+    context = StringProperty(unique = True)
+    context_description = StringProperty(required=True)
+    alias = RelationshipFrom('AliasNode', 'ALIAS_TO_CONTEXT')
+    definition_node = RelationshipTo('DefinitionNode', 'CONTEXT_TO_DEFINITION' )
+
+class NeoDefinition(DjangoNode):
+
+    definition = StringProperty(required=True)
+    
+    
+    
+    
