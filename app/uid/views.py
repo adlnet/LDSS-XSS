@@ -1,13 +1,18 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, HttpRequest
-from uuid import uuid5, NAMESPACE_URL
+from django.http import HttpResponse, HttpRequest, JsonResponse
+#from uuid import uuid5, NAMESPACE_URL
 import json
 from neomodel import db
-from .models import CounterNode, UIDNode, Provider, LCVTerm
+from .models import CounterNode, UIDNode, Provider, LCVTerm, UIDGenerator, LanguageSet
 from .forms import ProviderForm, LCVTermForm
-from django.http import JsonResponse
+#from django.http import JsonResponse
+#from .utils import generate_uid # import generate_uid 
+
 
 MAX_CHILDREN = 2**32 -1
+
+# Initialzie the UID generator
+uid_generator = UIDGenerator()
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):
@@ -29,7 +34,8 @@ def generate_uid_node(request: HttpRequest):
 
     if num_children > MAX_CHILDREN:
         return HttpResponse("{ 'error': 'Max children exceeded for {parent_uid}' }", status=400, content_type='application/json')
-    local_uid = CounterNode.increment().counter
+    local_uid = uid_generator.generate_uid() # updated to use new UID Generation method
+    #local_uid = CounterNode.increment().counter
 
     new_child_node = UIDNode.create_node(uid = local_uid, namespace = namespace)
 
@@ -37,7 +43,7 @@ def generate_uid_node(request: HttpRequest):
 
     return HttpResponse("{ 'uid': '" + str(local_uid) + "' }", content_type='application/json')
 
-# Provider and LCVTerm
+# Provider and LCVTerm (Otherwise alternative Parent and child)
 def create_provider(request):
     if request.method == 'POST':
         form = ProviderForm(request.POST)
@@ -76,6 +82,14 @@ def export_to_postman(request, uid):
                 # Add other fields you want to export
             }
         except LCVTerm.DoesNotExist:
-            return JsonResponse({'error': 'UID not found'}, status=404)
+            try:
+                language_set = LanguageSet.objects.get(uid=uid)
+                data = {
+                    'name': language_set.name,
+                    'uid': language_set.uid,
+                    'terms': [term.uid for term in language_set.terms.all()],
+                }
+            except LanguageSet.DoesNotExist:
+                return JsonResponse({'error': 'UID not found'}, status=404)
 
     return JsonResponse(data)
