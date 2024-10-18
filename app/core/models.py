@@ -15,6 +15,8 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty
+from django_neomodel import DjangoNode
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -431,3 +433,41 @@ class TransformationLedger(TimeStampedModel):
                     self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
+
+class NeoTerm(DjangoNode):
+    identifier = UniqueIdProperty()
+    uid = StringProperty(unique_index=True, )
+    term = StringProperty(required=True)
+    definition = RelationshipTo('NeoDefinition', 'DEFINITION_OF')
+    alias = RelationshipTo('NeoAlias', 'ALIAS_OF')
+    class Meta:
+        app_label = 'core'
+
+class NeoAlias(DjangoNode):
+    identifier = UniqueIdProperty()
+    alias = StringProperty()
+    term = RelationshipFrom('NeoTerm', 'ALIAS_OF')
+    context = RelationshipTo('NeoContext', 'ALIAS_TO')
+    class Meta:
+        app_label = 'core'
+
+
+class NeoContext(DjangoNode):
+    identifier = UniqueIdProperty()
+    context = StringProperty(unique = True)
+    context_description = StringProperty(required=True)
+    alias = RelationshipFrom('NeoAlias', 'ALIAS_TO_CONTEXT')
+    definition_node = RelationshipTo('NeoDefinition', 'CONTEXT_TO_DEFINITION' )
+
+    class Meta:
+        app_label = 'core'
+
+class NeoDefinition(DjangoNode):
+    identifier = UniqueIdProperty()
+    definition = StringProperty(required=True)
+    
+    class Meta:
+        app_label = 'core'
+    
+    
+    

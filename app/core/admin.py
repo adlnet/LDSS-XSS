@@ -2,6 +2,8 @@ from django.contrib import admin
 
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
+from django_neomodel import admin as neomodel_admin
+from core.models import NeoAlias, NeoContext, NeoDefinition
 
 
 # Register your models here.
@@ -110,3 +112,21 @@ class TermAdmin(admin.ModelAdmin):
             form.base_fields['mapping'].queryset = Term.objects.exclude(
                 iri__startswith=obj.root_term_set())
         return form
+
+class NeoAliasAdmin(admin.ModelAdmin):
+    list_display = ('alias', 'term')
+
+
+neomodel_admin.register(NeoAlias, NeoAliasAdmin)
+
+class NeoContextAdmin(admin.ModelAdmin):
+    list_display = ('context', 'context_description')
+    readonly_fields = ('context', 'context_description')
+
+neomodel_admin.register(NeoContext, NeoContextAdmin)
+
+class NeoDefinitionAdmin(admin.ModelAdmin):
+    list_display = ('definition',)
+    readonly_fields = ('definition',)
+
+neomodel_admin.register(NeoDefinition, NeoDefinitionAdmin)
