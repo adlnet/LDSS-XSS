@@ -113,21 +113,20 @@ class TermAdmin(admin.ModelAdmin):
                 iri__startswith=obj.root_term_set())
         return form
 
-class AliasNodeAdmin(admin.ModelAdmin):
+class NeoAliasAdmin(admin.ModelAdmin):
     list_display = ('alias', 'term')
-    readonly_fields = ('alias', 'term')
 
 
-neomodel_admin.register(NeoAlias, AliasNodeAdmin)
+neomodel_admin.register(NeoAlias, NeoAliasAdmin)
 
-class ContextNodeAdmin(admin.ModelAdmin):
+class NeoContextAdmin(admin.ModelAdmin):
     list_display = ('context', 'context_description')
     readonly_fields = ('context', 'context_description')
 
-neomodel_admin.register(NeoContext, ContextNodeAdmin)
+neomodel_admin.register(NeoContext, NeoContextAdmin)
 
-class DefinitionNodeAdmin(admin.ModelAdmin):
-    list_display = ('definition')
-    readonly_fields = ('definition')
+class NeoDefinitionAdmin(admin.ModelAdmin):
+    list_display = ('definition',)
+    readonly_fields = ('definition',)
 
-neomodel_admin.register(NeoDefinition, DefinitionNodeAdmin)
+neomodel_admin.register(NeoDefinition, NeoDefinitionAdmin)

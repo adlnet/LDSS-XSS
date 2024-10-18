@@ -15,7 +15,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
-from neomodel import StringProperty, RelationshipTo, RelationshipFrom
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty
 from django_neomodel import DjangoNode
 
 logger = logging.getLogger('dict_config_logger')
@@ -435,28 +435,39 @@ class TransformationLedger(TimeStampedModel):
             self.schema_mapping_file = None
 
 class NeoTerm(DjangoNode):
-    uid = StringProperty(unique_index=True)
+    identifier = UniqueIdProperty()
+    uid = StringProperty(unique_index=True, )
     term = StringProperty(required=True)
-    definition = RelationshipTo('DefinitionNode', 'DEFINITION_OF')
+    definition = RelationshipTo('NeoDefinition', 'DEFINITION_OF')
+    alias = RelationshipTo('NeoAlias', 'ALIAS_OF')
+    class Meta:
+        app_label = 'core'
 
 class NeoAlias(DjangoNode):
-
-    alias = StringProperty(unique_index=True)
-    term = RelationshipFrom('TermNode', 'ALIAS_OF')
-    context = RelationshipTo('ContextNode', 'ALIAS_TO')
+    identifier = UniqueIdProperty()
+    alias = StringProperty()
+    term = RelationshipFrom('NeoTerm', 'ALIAS_OF')
+    context = RelationshipTo('NeoContext', 'ALIAS_TO')
+    class Meta:
+        app_label = 'core'
 
 
 class NeoContext(DjangoNode):
-
+    identifier = UniqueIdProperty()
     context = StringProperty(unique = True)
     context_description = StringProperty(required=True)
-    alias = RelationshipFrom('AliasNode', 'ALIAS_TO_CONTEXT')
-    definition_node = RelationshipTo('DefinitionNode', 'CONTEXT_TO_DEFINITION' )
+    alias = RelationshipFrom('NeoAlias', 'ALIAS_TO_CONTEXT')
+    definition_node = RelationshipTo('NeoDefinition', 'CONTEXT_TO_DEFINITION' )
+
+    class Meta:
+        app_label = 'core'
 
 class NeoDefinition(DjangoNode):
-
+    identifier = UniqueIdProperty()
     definition = StringProperty(required=True)
     
+    class Meta:
+        app_label = 'core'
     
     
     
