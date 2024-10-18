@@ -7,13 +7,20 @@ from datetime import datetime
 
 # Create your models here.
 
+class UIDCounter(models.Model):
+    counter = models.IntegerField(default=0)
+
 class UIDGenerator:
     def __init__(self):
-        self.counter = 0
+        #self.counter = 0
+        self.counter_obj, created = UIDCounter.objects.get_or_create(id=1)
 
     def generate_uid(self):
-        self.counter += 1
-        return f"UID{self.counter:06d}"  # Zero-padded to 6 digits
+        #self.counter += 1
+        self.counter_obj.counter += 1
+        self.counter_obj.save()
+        #return f"UID{self.counter:06d}"  # Zero-padded to 6 digits
+        return f"0x{self.counter_obj.counter:08x}"  # Zero-padded using hex padding
 
 # Intilialize the UID Generator
 uid_generator = UIDGenerator()

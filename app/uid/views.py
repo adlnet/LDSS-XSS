@@ -48,7 +48,10 @@ def create_provider(request):
     if request.method == 'POST':
         form = ProviderForm(request.POST)
         if form.is_valid():
-            form.save()
+            provider = form.save(commit=False)
+            provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
+            provider.save()
+            #form.save()
             return redirect('uid:success')
     else:
         form = ProviderForm()
@@ -58,7 +61,10 @@ def create_lcvterm(request):
     if request.method == 'POST':
         form = LCVTermForm(request.POST)
         if form.is_valid():
-            form.save()
+            lcvterm = form.save(commit=False)
+            lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
+            lcvterm.save()
+            #form.save()
             return redirect('uid:success')
     else:
         form = LCVTermForm()
