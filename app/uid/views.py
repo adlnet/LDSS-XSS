@@ -5,7 +5,6 @@ import json
 from neomodel import db
 from .models import CounterNode, UIDNode, Provider, LCVTerm, UIDGenerator, LanguageSet
 from .forms import ProviderForm, LCVTermForm
-#from django.http import JsonResponse
 #from .utils import generate_uid # import generate_uid 
 
 
@@ -89,11 +88,14 @@ def export_to_postman(request, uid):
             }
         except LCVTerm.DoesNotExist:
             try:
-                language_set = LanguageSet.objects.get(uid=uid)
-                data = {
-                    'name': language_set.name,
-                    'uid': language_set.uid,
-                    'terms': [term.uid for term in language_set.terms.all()],
+                with db.transaction:
+                    #language_set = LanguageSet.objects.get(uid=uid)
+                    language_set = LanguageSet.nodes.get(uid=uid)
+                    data = {
+                        'name': language_set.name,
+                        'uid': language_set.uid,
+                        'terms': [term.uid for term in language_set.terms], # this should update Postman on LanguageSet changes to a Node.
+                        #'terms': [term.uid for term in language_set.terms.all()],
                 }
             except LanguageSet.DoesNotExist:
                 return JsonResponse({'error': 'UID not found'}, status=404)

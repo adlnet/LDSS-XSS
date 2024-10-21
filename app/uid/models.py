@@ -88,7 +88,13 @@ class LCVTerm(models.Model):
     term = models.CharField(max_length=255)
     ld_lcv_structure = models.CharField(max_length=255)  # Adjust as needed
 
-class LanguageSet(models.Model):  # Assuming this is the model for xBOM
-    uid = models.CharField(default=lambda: uid_generator.generate_uid(), max_length=36, editable=False, unique=True)
-    name = models.CharField(max_length=255)
-    terms = models.ManyToManyField(LCVTerm, related_name='language_sets')
+#class LanguageSet(models.Model):  # Assuming this is the model for xBOM
+ #   uid = models.CharField(default=lambda: uid_generator.generate_uid(), max_length=36, editable=False, unique=True)
+  #  name = models.CharField(max_length=255)
+  #  terms = models.ManyToManyField(LCVTerm, related_name='language_sets')
+
+# LanguageSet now a DjangoNode
+class LanguageSet(StructuredNode):
+    uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
+    name = StringProperty(required=True)
+    terms = RelationshipTo(LCVTerm, 'HAS_TERM')

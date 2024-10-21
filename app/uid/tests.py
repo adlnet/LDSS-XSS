@@ -6,6 +6,7 @@ from .models import Provider, LCVTerm, LanguageSet, UIDCounter, uid_generator # 
 from .utils import send_notification
 from django.urls import reverse
 from rest_framework.test import APITestCase
+from neomodel import db
 
 
 class TestCounterNode(TestCase):
@@ -72,12 +73,14 @@ class UIDGenerationTestCase(TestCase):
         self.assertEqual(len(lcv_term.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
         self.assertNotIn(lcv_term.uid, [l.uid for l in LCVTerm.objects.all() if l.uid])
 
-    def test_uid_generation_for_language_sets(self):
-        language_set = LanguageSet.objects.create(name="Test Language Set")
-        self.assertIsNotNone(language_set.uid)
-        self.assertTrue(language_set.uid.startswith("0x"))
-        self.assertEqual(len(language_set.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
-        self.assertNotIn(language_set.uid, [ls.uid for ls in LanguageSet.objects.all() if ls.uid])
+    def test_uid_generation_for_language_sets(self): #Changes to reflect LanguageSet now DjangoNode
+        with db.transaction:
+            #language_set = LanguageSet.objects.create(name="Test Language Set")
+            language_set = LanguageSet(name="Test Language Set").save()
+            self.assertIsNotNone(language_set.uid)
+            self.assertTrue(language_set.uid.startswith("0x"))
+            self.assertEqual(len(language_set.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
+            self.assertNotIn(language_set.uid, [ls.uid for ls in LanguageSet.objects.all() if ls.uid])
 
     def test_issuing_uid_to_providers(self):
         provider = Provider.objects.create(name="Test Provider")
