@@ -1,10 +1,15 @@
 from django.contrib import admin
+from django.http import HttpRequest
 
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
-from core.models import NeoAlias, NeoContext, NeoDefinition
+from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm
+from django import forms
 
+import logging
+
+logger = logging.getLogger('dict_config_logger')
 
 # Register your models here.
 @admin.register(SchemaLedger)
@@ -112,6 +117,36 @@ class TermAdmin(admin.ModelAdmin):
             form.base_fields['mapping'].queryset = Term.objects.exclude(
                 iri__startswith=obj.root_term_set())
         return form
+
+class NeoTermAdminForm(forms.ModelForm):
+    definition = forms.CharField(required=False)
+    context = forms.CharField(required=False)
+    context_description = forms.CharField(required=False)
+
+    class Meta:
+        model = NeoTerm
+        fields = ['term']
+
+class NeoTermAdmin(admin.ModelAdmin):
+    form = NeoTermAdminForm
+
+    def save_model(self, request, obj, form, change):
+        term = form.cleaned_data.get('term')
+        definition = form.cleaned_data.get('definition')
+        context = form.cleaned_data.get('context')
+        context_description = form.cleaned_data.get('context description')
+        
+        single_neoterm_cosine_similarity_test(term, definition, context, context_description)
+        #do cosine stuff
+        # if cosine stuff valid 
+        #save term
+
+        logger.info(definition)
+        obj.save()
+
+
+neomodel_admin.register(NeoTerm, NeoTermAdmin)
+
 
 class NeoAliasAdmin(admin.ModelAdmin):
     list_display = ('alias', 'term')
