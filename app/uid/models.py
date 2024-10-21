@@ -20,7 +20,7 @@ class UIDGenerator:
         self.counter_obj.counter += 1
         self.counter_obj.save()
         #return f"UID{self.counter:06d}"  # Zero-padded to 6 digits
-        return f"0x{self.counter_obj.counter:08x}"  # Zero-padded using hex padding
+        return f"0x{self.counter_obj.counter:08x}"  # Now using hex padding for UID
 
 # Intilialize the UID Generator
 uid_generator = UIDGenerator()
@@ -29,15 +29,15 @@ uid_generator = UIDGenerator()
 
 class UIDNode(StructuredNode):
     uid = StringProperty(default=lambda:uid_generator.generate_uid()) # Updated to use UID Generator counter
-    # uid = StringProperty(default=lambda:generate_uid(str(datetime.now()))) # Updated string to no no longer use uuid4
-    # uid = StringProperty(default=lambda:str(uuid.uuid4())) # UUID if UID is not provided to ensure uniqueness and avoids conflits
-    # Should this have a TermID or Term value and Definition value? 
-    # Is the UID Service just supposed to generate UID's or is it supposed to store the relationships between different terms. 
+    # uid = StringProperty(default=lambda:generate_uid(str(datetime.now()))) # Updated string to no longer use uuid4
+    # uid = StringProperty(default=lambda:str(uuid.uuid4())) # UUID if UID is not provided to ensure uniqueness and avoids conflits.
     namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True) # Better time stamp handeling.
     created_at = DateTimeProperty(default_now=True)
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
+    #lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
+    #provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
     @classmethod
     def get_node_by_uid(cls, uid: str, namespace: str):
@@ -49,6 +49,36 @@ class UIDNode(StructuredNode):
         uid_node.save()
         return uid_node
     
+# Possible idea for Parent/child or Provider/LCVterm upstream/downstream 
+    #def get_providers(self):
+        #return self.providers.all()
+
+    #def get_lcvterms(self):
+        #return self.lcvterms.all()
+
+    #def get_upstream(self)
+        #providers = []
+        #current_node = self
+        #while current_node:
+            #provider_nodes = currrent_node.get_providers()
+            #if provider_nodes:
+            #   provider_node = parent_nodes[0]
+            # providers.append(provider_node)
+            # current_node = provider_node
+            # else:
+            #       current_node = None
+        #return providers
+    
+    #def get_downstream(self):
+        #lcv_terms = []
+        #nodes_to_visit = [self]
+        #while nodes_to_visit:
+            #current_node = nodes_to_visit.pop()
+            #lcv_terms_nodes = current_node.get_lcv_terms()
+            #lcv_terms.extend(lcv_terms_nodes)
+            #nodes_to_visit.extend(lcv_terms_nodes)
+        #return lcv_terms   
+
 class CounterNode(StructuredNode):
     counter = IntegerProperty(default=0)
     updated_at = DateTimeProperty(default=lambda: datetime.now())

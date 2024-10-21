@@ -42,6 +42,25 @@ def generate_uid_node(request: HttpRequest):
 
     return HttpResponse("{ 'uid': '" + str(local_uid) + "' }", content_type='application/json')
 
+#Potential code to retrieve parent and child nodes using the upstream and downstream capabilities
+#def get_upstream_providers(request, uid):
+    #try:
+      #  lcv_term = LCVTerm.nodes.get(uid=uid)
+     #   upstream_providers = lcv_term.get_upstream()
+    #    upstream_uids = [p.uid for p in upstream_providers]
+   #     return JsonResponse({'upstream_uids': upstream_uids})
+  #  except LCVTerm.DoesNotExist:
+ #       return JsonResponse({'error': 'LCVTerm not found'}, status=404)
+
+#def get_downstream_lcv_terms(request, uid):
+    #try:
+        #provider = Provider.nodes.get(uid=uid)
+       # downstream_lcv_terms = provider.get_downstream()
+      #  downstream_uids = [l.uid for l in downstream_lcv_terms]
+     #   return JsonResponse({'downstream_uids': downstream_uids})
+    #except Provider.DoesNotExist:
+    #    return JsonResponse({'error': 'Provider not found'}, status=404)
+
 # Provider and LCVTerm (Otherwise alternative Parent and child)
 def create_provider(request):
     if request.method == 'POST':
