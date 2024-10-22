@@ -55,4 +55,12 @@ class ExportNeoTermsViewsTests(unittest.TestCase):
 
         actual_xml = ET.fromstring(response.content)
         expected_xml = ET.fromstring(xml_string)
+
+        ## TODO:     
+        ##      Potentially weak assertion if the XML structure changes,
+        ##      as this is a string literal comparison.
+        ##
+        ##      Would prefer if this sort of thing were compared with properties
+        ##      down the road.
+        ##    
         self.assertEqual(ET.tostring(actual_xml), ET.tostring(expected_xml))

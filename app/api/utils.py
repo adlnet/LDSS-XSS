@@ -17,6 +17,7 @@ def validate_csv(csv_file):
             
         except pd.errors.EmptyDataError:
             return {'error': 'The CSV file is empty.', 'missing_rows': []}
+        
         except pd.errors.ParserError:
             return {'error': 'The CSV file is malformed or not valid.', 'missing_rows': []}
         
@@ -44,12 +45,14 @@ def create_terms_from_csv(df):
         for index, row in df.iterrows():
             logger.info(f"This is the term for index { index }  {row['Term']}")
 
-            term = NeoTerm(term = row['Term'],
+            term = NeoTerm(
+                        term = row['Term'],
                         definition = row['Definition'],
                         context = row['Context'],
                         context_description = row['Context Description'])
             term.save()
         logger.info(f'{len(df)} terms created from CSV file.')
+
     except Exception as e:
         logger.error(f'Error creating terms from CSV file: {str(e)}')
         return {'error': str(e)}
@@ -69,5 +72,6 @@ def convert_to_xml(data):
         xml_data = ET.tostring(root, encoding='utf-8')
         logger.info(f'XML data generated: {xml_data}')
         return HttpResponse(xml_data, content_type="application/xml")
+    
     except Exception as e:
         return {'error': str(e)}
