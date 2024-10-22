@@ -15,7 +15,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
-from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty
 from django_neomodel import DjangoNode
 
 logger = logging.getLogger('dict_config_logger')
@@ -465,6 +465,7 @@ class NeoContext(DjangoNode):
 class NeoDefinition(DjangoNode):
     identifier = UniqueIdProperty()
     definition = StringProperty(required=True)
+    vector = ArrayProperty()
     
     class Meta:
         app_label = 'core'

@@ -43,3 +43,9 @@ neomodel>=5.1.0
 pandas>=0.23.4
 
 django-neomodel>=0.1.1
+
+elasticsearch>=7.17.9
+
+elasticsearch-dsl>=7.4.0
+
+sentence-transformers>=2.0.0
