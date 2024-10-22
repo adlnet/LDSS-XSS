@@ -128,3 +128,11 @@ class LanguageSet(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     terms = RelationshipTo(LCVTerm, 'HAS_TERM')
+
+    def add_term(self, term):
+        """Add a LCVTerm to this LanguageSet."""
+        self.terms.connect(term)
+
+    def get_terms(self):
+        """Retrieve all LCVTerms in this LanguageSet."""
+        return self.terms.all()

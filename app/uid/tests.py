@@ -108,6 +108,14 @@ class UIDGenerationTestCase(TestCase):
         self.assertTrue(send_notification(provider, provider_uid))
         self.assertTrue(send_notification(lcv_term, lcv_term_uid))
 
+    # Adding terms to languageSets
+    def test_add_term_to_language_set(self):
+        with db.transaction:
+            language_set = LanguageSet(name="Test Language Set").save()
+            lcv_term = LCVTerm(term="Test LCV Term").save()
+            language_set.add_term(lcv_term)
+            self.assertIn(lcv_term, language_set.get_terms())
+
 # Potnetial code for upstream/downstream testing for Providers/LCVterms
     #def test_upstream_providers(self):
      #   with db.transaction:
