@@ -7,10 +7,19 @@ services:
       - '3310:3306'
     environment:
       MYSQL_DATABASE: "${DB_NAME}"
-#      MYSQL_USER: 'root'
+      MYSQL_USER: "${DB_USER}"
       MYSQL_PASSWORD: "${DB_PASSWORD}"
       MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
       # MYSQL_HOST: ''
+    networks:
+      - openlxp
+  neo4j:
+    image: neo4j:4.2.0
+    ports:
+      - '7687:7687'
+      - '7474:7474'
+    environment:
+      NEO4J_AUTH: neo4j/password
     networks:
       - openlxp
   app:
@@ -47,4 +56,4 @@ volumes:
     driver: local
 networks:
   openlxp:
-    external: true
+    external: false
