@@ -29,7 +29,10 @@ def generate_uid_node(request: HttpRequest):
         else:
             parent_node = UIDNode.create_node(uid = parent_uid, namespace = namespace)
     
-    num_children = parent_node.children.count()
+    #num_children = parent_node.children.count()
+
+    # Replace the count check here
+    num_children = len(list(parent_node.children))
 
     if num_children > MAX_CHILDREN:
         return HttpResponse("{ 'error': 'Max children exceeded for {parent_uid}' }", status=400, content_type='application/json')
