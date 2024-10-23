@@ -11,7 +11,7 @@ from datetime import datetime
 #class UIDCounter(models.Model):
     #counter = models.IntegerField(default=0)
 
-#Creating the UIDcounter as  DjangoNode
+#Creating the UIDcounter as DjangoNode
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
 
