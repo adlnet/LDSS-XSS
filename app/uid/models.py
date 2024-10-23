@@ -15,11 +15,23 @@ from datetime import datetime
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
 
+    #@classmethod
+    #def initialize(cls):
+        # Ensure a counter exists in the Neo4j database
+     #   if cls.nodes.count() == 0:
+      #      cls().save()
+    
     @classmethod
     def initialize(cls):
-        # Ensure a counter exists in the Neo4j database
-        if cls.nodes.count() == 0:
-            cls().save()
+        # Check if there are any existing UIDCounter nodes
+        if len(cls.nodes.all()) == 0:
+            cls.create_node()  # Create a new node if none exists
+
+    @classmethod
+    def create_node(cls):
+        counter_node = cls()
+        counter_node.save()
+        return counter_node
 
 #class UIDGenerator:
  #   def __init__(self):
