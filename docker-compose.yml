@@ -32,7 +32,7 @@ services:
       - xpack.security.enabled=false                # Disable security for local development (enable in production)
       - xpack.ml.enabled=false                      # Disable machine learning features
       - ES_JAVA_OPTS=-Xms512m -Xmx512m               # Set JVM heap size to 512 MB (tune based on your needs)
-      - logger.org.elasticsearch=WARN                # Set log level to INFO
+      - logger.org.elasticsearch=WARN               # Set log level to WARN
     ulimits:
       memlock:
         soft: -1
@@ -64,17 +64,25 @@ services:
       # BAD_HOST: "${BAD_HOST}"
       # OVERIDE_HOST: "${OVERIDE_HOST}"
       # STRATEGY: "${STRATEGY}"
+      SENTENCE_TRANSFORMERS_HOME: "${SENTENCE_TRANSFORMERS_HOME}"
+      HF_HOME: "${HF_HOME}"
+      TRANSFORMERS_CACHE: "${TRANSFORMERS_CACHE}"
+      HF_DATASETS_CACHE: "${HF_DATASETS_CACHE}"
     volumes:
       - ./app:/opt/app/openlxp-xss
+      - huggingface_data:/opt/app/huggingface
     depends_on:
       - neo4j
       - db-xss
+      - elasticsearch
     networks:
       - openlxp
 volumes:
   es_data:
     driver: local
   data01:
+    driver: local
+  huggingface_data:
     driver: local
 networks:
   openlxp:
