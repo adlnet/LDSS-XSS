@@ -15,7 +15,6 @@ uid_generator = UIDGenerator()
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):
-
     request_body = json.loads(request.body)
     print(request_body)
     #request_body = json.loads(request.body)

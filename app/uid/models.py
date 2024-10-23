@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib import admin
 from neomodel import StructuredNode, StringProperty, DateTimeProperty, BooleanProperty, IntegerProperty, RelationshipTo, RelationshipFrom
 from datetime import datetime
 # from .utils import generate_uid # Import from generate_uid
@@ -7,13 +8,43 @@ from datetime import datetime
 
 # Create your models here.
 
-class UIDCounter(models.Model):
-    counter = models.IntegerField(default=0)
+#class UIDCounter(models.Model):
+    #counter = models.IntegerField(default=0)
 
+#Creating the UIDcounter as  DjangoNode
+class UIDCounter(StructuredNode):
+    counter = IntegerProperty(default=0)
+
+    @classmethod
+    def initialize(cls):
+        # Ensure a counter exists in the Neo4j database
+        if cls.nodes.count() == 0:
+            cls().save()
+
+#class UIDGenerator:
+ #   def __init__(self):
+  #      #self.counter = 0
+   #     self.counter_obj, created = UIDCounter.objects.get_or_create(id=1)
+
+# Create a Django model to facilitate admin management
+class UIDCounterDjangoModel(models.Model):
+    id = models.AutoField(primary_key=True)  # Needed for Django to manage the model
+    counter_value = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = "UID Counter"
+        verbose_name_plural = "UID Counters"
+
+    @classmethod
+    def initialize(cls):
+        cls.objects.get_or_create(id=1)  # Ensure a counter exists
+
+# Refactore DjangoNode now
 class UIDGenerator:
     def __init__(self):
-        #self.counter = 0
-        self.counter_obj, created = UIDCounter.objects.get_or_create(id=1)
+        UIDCounter.initialize()  # Ensure the counter is initialized
+        UIDCounterDjangoModel.initialize()  # Ensure the Django model counter is initialized
+        self.counter_obj = UIDCounter.objects.get(id=1)
 
     def generate_uid(self):
         #self.counter += 1
@@ -129,3 +160,9 @@ class LanguageSet(StructuredNode):
     def get_terms(self):
         """Retrieve all LCVTerms in this LanguageSet."""
         return self.terms.all()
+    
+# Register UIDCounterDjangoModel in the admin
+@admin.register(UIDCounterDjangoModel)
+class UIDCounterAdmin(admin.ModelAdmin):
+    list_display = ('id', 'counter_value')
+    search_fields = ('id',)
