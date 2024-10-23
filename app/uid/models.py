@@ -1,5 +1,5 @@
 from django.db import models
-from neomodel import StructuredNode, StringProperty, DateTimeProperty, BooleanProperty, IntegerProperty, RelationshipTo
+from neomodel import StructuredNode, StringProperty, DateTimeProperty, BooleanProperty, IntegerProperty, RelationshipTo, RelationshipFrom
 from datetime import datetime
 # from .utils import generate_uid # Import from generate_uid
 # import uuid
@@ -36,8 +36,8 @@ class UIDNode(StructuredNode):
     created_at = DateTimeProperty(default_now=True)
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
-    #lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
-    #provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+    lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
+    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
     @classmethod
     def get_node_by_uid(cls, uid: str, namespace: str):
@@ -104,26 +104,19 @@ class CounterNode(StructuredNode):
         counter.save()
         return counter
 
+# Provider and LCVTerms now Nodes
+class Provider(StructuredNode):
+    uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
+    name = StringProperty(required=True)
+    lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
-class Provider(models.Model):
-    uid = models.CharField(default=lambda: uid_generator.generate_uid(), max_length=36, editable=False, unique=True)
-    #uid = models.CharField(default=lambda: generate_uid(str(datetime.now())), max_length=36, editable=False, unique=True)
-    #uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    name = models.CharField(max_length=255)
+class LCVTerm(StructuredNode):
+    uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
+    term = StringProperty(required=True)
+    ld_lcv_structure = StringProperty()  # Adjust as needed
+    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
-class LCVTerm(models.Model):
-    uid = models.CharField(default=lambda: uid_generator.generate_uid(), max_length=36, editable=False, unique=True)
-    #uid = models.CharField(default=lambda: generate_uid(str(datetime.now())), max_length=36, editable=False, unique=True)
-    #uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    term = models.CharField(max_length=255)
-    ld_lcv_structure = models.CharField(max_length=255)  # Adjust as needed
-
-#class LanguageSet(models.Model):  # Assuming this is the model for xBOM
- #   uid = models.CharField(default=lambda: uid_generator.generate_uid(), max_length=36, editable=False, unique=True)
-  #  name = models.CharField(max_length=255)
-  #  terms = models.ManyToManyField(LCVTerm, related_name='language_sets')
-
-# LanguageSet now a DjangoNode
+# LanguageSet now a Node
 class LanguageSet(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)

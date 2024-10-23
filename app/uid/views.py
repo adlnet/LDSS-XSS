@@ -18,10 +18,11 @@ def generate_uid_node(request: HttpRequest):
 
     request_body = json.loads(request.body)
     print(request_body)
+    #request_body = json.loads(request.body)
     strict_parent_validation = request_body.get('strict_parent_validation', False)
     parent_uid = request_body.get('parent_uid', None)
     namespace = request_body.get('namespace', 'LCV') #??? Ask Hunter about where namespace is actually configured and is it different than just organization?
-    parent_node = UIDNode.get_node_by_uid(parent_uid)
+    parent_node = UIDNode.get_node_by_uid(parent_uid, namespace) #added namespace
 
     if parent_node is None:
         if strict_parent_validation:
