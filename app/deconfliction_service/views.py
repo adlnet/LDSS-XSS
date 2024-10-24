@@ -43,7 +43,7 @@ def run_deconfliction(terms: List[str]):
         #for term in terms:
         #   single_term_comparision(term)
         for term in terms:
-            embeddings = es.create_embedding(term)
+            definition_embedding, term_embedding  = es.create_embedding(term)
             es.check_similarity(term, embeddings)
             es.index_document(term, embeddings)
     except Exception as e:

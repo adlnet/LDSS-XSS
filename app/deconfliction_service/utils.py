@@ -65,13 +65,13 @@ class ElasticsearchClient:
             }
             self.es.indices.create(index=index_name, body=mapping)
 
-    def create_embedding(self, term, definition):
+    def create_embedding(self, term):
         """
         Creates a vector embedding for the given text using SentenceTransformer.
         """
-        definition_embedding = self.model.encode(definition)
-        term_embedding = self.model.encode(term)
-        return {definition_embedding, term_embedding}
+        definition_embedding = self.model.encode(term.definition)
+        term_embedding = self.model.encode(term.term)
+        return definition_embedding, term_embedding
 
     def index_document(self, index_name, term, definition, uid):
         """

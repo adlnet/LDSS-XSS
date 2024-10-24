@@ -136,12 +136,15 @@ class NeoTermAdmin(admin.ModelAdmin):
         definition = form.cleaned_data.get('definition')
         context = form.cleaned_data.get('context')
         context_description = form.cleaned_data.get('context description')
+
+        run_deconfliction()
+
+        #neoterm = {'term': term, 'definition': definition, 'context': context, 'context_description': context_description}
         
         #single_term_comparision(term, definition)
         #do cosine stuff
         # if cosine stuff valid 
         #save term
-        run_deconfliction(term)
 
         logger.info(definition)
         obj.save()
