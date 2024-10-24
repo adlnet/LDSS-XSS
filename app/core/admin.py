@@ -136,8 +136,11 @@ class NeoTermAdmin(admin.ModelAdmin):
         definition = form.cleaned_data.get('definition')
         context = form.cleaned_data.get('context')
         context_description = form.cleaned_data.get('context description')
-
-        run_deconfliction()
+        try: 
+            result = run_deconfliction()
+            if result is not None:
+                return redirect('admin:core_neoterm_changelist')
+            
 
         #neoterm = {'term': term, 'definition': definition, 'context': context, 'context_description': context_description}
         
@@ -145,7 +148,10 @@ class NeoTermAdmin(admin.ModelAdmin):
         #do cosine stuff
         # if cosine stuff valid 
         #save term
-
+        except Exception as e:
+            logger.error(f"Error in save_model: {e}")
+            messages.error(request, f"Error in save_model: {e}")
+            return
         logger.info(definition)
         obj.save()
 
