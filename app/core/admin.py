@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.http import HttpRequest
 
-from deconfliction_service.views import single_term_comparision
+from deconfliction_service.views import run_deconfliction
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
@@ -137,10 +137,11 @@ class NeoTermAdmin(admin.ModelAdmin):
         context = form.cleaned_data.get('context')
         context_description = form.cleaned_data.get('context description')
         
-        single_term_comparision(term, definition)
+        #single_term_comparision(term, definition)
         #do cosine stuff
         # if cosine stuff valid 
         #save term
+        run_deconfliction(term)
 
         logger.info(definition)
         obj.save()
