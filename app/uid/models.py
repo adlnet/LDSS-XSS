@@ -12,9 +12,10 @@ from datetime import datetime
 #Creating the UIDcounter as Neo4j Node
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
-    
-   @classmethod
-   def get_instance(cls):
+
+
+    @classmethod
+    def get_instance(cls):
         instance = cls.nodes.first_or_none()
         if not instance:
             instance = cls()
