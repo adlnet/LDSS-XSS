@@ -4,7 +4,7 @@ services:
   db-xss:
     image: mysql:5.7
     ports:
-      - '3310:3306'
+      - '127.0.0.1:3310:3306'
     environment:
       MYSQL_DATABASE: "${DB_NAME}"
       MYSQL_USER: "${DB_USER}"
@@ -16,8 +16,8 @@ services:
   neo4j:
     image: neo4j:4.2.0
     ports:
-      - '7687:7687'
-      - '7474:7474'
+      - '127.0.0.1:7687:7687'
+      - '127.0.0.1:7474:7474'
     environment:
       NEO4J_AUTH: neo4j/password
     networks:
@@ -45,6 +45,7 @@ services:
       # BAD_HOST: "${BAD_HOST}"
       # OVERIDE_HOST: "${OVERIDE_HOST}"
       # STRATEGY: "${STRATEGY}"
+      NEO4J_URL: "bolt://neo4j:password@neo4j:7687"
     volumes:
       - ./app:/opt/app/openlxp-xss
     depends_on:
