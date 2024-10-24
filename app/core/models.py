@@ -12,6 +12,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django_neomodel import DjangoNode
+from neomodel import StringProperty, UniqueIdProperty
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
@@ -431,3 +433,14 @@ class TransformationLedger(TimeStampedModel):
                     self.schema_mapping = json_bleach
             json_file.close()
             self.schema_mapping_file = None
+
+class NeoTerm(DjangoNode):
+
+    uid = UniqueIdProperty() # Should be replaced or removed at some point based on UID work
+    term = StringProperty(required=True)
+    definition = StringProperty(required=True)
+    context = StringProperty(required=True)
+    context_description = StringProperty(required=True)
+
+    class Meta:
+        app_label = 'core'
