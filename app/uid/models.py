@@ -14,7 +14,7 @@ class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
     
    @classmethod
-    def get_instance(cls):
+   def get_instance(cls):
         instance = cls.nodes.first_or_none()
         if not instance:
             instance = cls()
