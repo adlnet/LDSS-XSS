@@ -70,34 +70,28 @@ class ElasticsearchClient:
         Creates a vector embedding for the given text using SentenceTransformer.
         """
         definition_embedding = self.model.encode(term.definition)
-        term_embedding = self.model.encode(term.term)
-        return definition_embedding, term_embedding
+        return definition_embedding
 
-    def index_document(self, index_name, term, definition, uid):
+    def index_document(self, index_name, definition_embedding, lcvid):
         """
         Indexes a document with its term, definition, uid, and embedding into Elasticsearch.
         """
-        embeddings = self.create_embedding(term,definition)
         doc = {
-            'uid': uid,
-            'term': term,
-            'definition': definition,
-            'term_embedding': embeddings['term_embedding'],
-            'definition_embedding': embeddings['definition_embedding']
+            'lcvid': lcvid,
+            'definition_embedding': definition_embedding,
         }
         self.es.index(index=index_name, body=doc)
 
-    def check_similarity(self, index_name, term_embedding, definition_embedding, k=5):
+    def check_similarity(self,  definition_embedding, k=5):
         """
         Checks if a vector embedding is similar to any existing embeddings in the database.
         """
-        term_query = {
-            "knn": {
-                "field": "term_embedding",
-                "query_vector": term_embedding,
+        query = {
+            "cosineSimilarity": {
+                "definition_embedding": definition_embedding
             }
         }
-        return response['hits']['hits']
+        return 
 
     def search_by_uid(self, index_name, uid):
         """

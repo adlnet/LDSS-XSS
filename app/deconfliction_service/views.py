@@ -39,13 +39,11 @@ def run_deconfliction(terms: List[str]):
         es = ElasticsearchClient()
         es.connect()
         es.ensure_index()
-        #get all terms from neo4j
-        #for term in terms:
-        #   single_term_comparision(term)
+
         for term in terms:
-            definition_embedding, term_embedding  = es.create_embedding(term)
-            es.check_similarity(term, embeddings)
-            es.index_document(term, embeddings)
+            definition_embedding  = es.create_embedding(term)
+            es.check_similarity(term, definition_embedding)
+            es.index_document(term, definition_embedding)
     except Exception as e:
         logger.error(f"Error in run_deconfliction: {e}")
     finally:

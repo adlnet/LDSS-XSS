@@ -437,7 +437,7 @@ class TransformationLedger(TimeStampedModel):
 class NeoTerm(DjangoNode):
     identifier = UniqueIdProperty()
     uid = StringProperty(unique_index=True, )
-    term = StringProperty(required=True)
+    lcvid = StringProperty(required=True)
     definition = RelationshipTo('NeoDefinition', 'DEFINITION_OF')
     alias = RelationshipTo('NeoAlias', 'ALIAS_OF')
     class Meta:

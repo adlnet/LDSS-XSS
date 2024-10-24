@@ -123,37 +123,40 @@ class NeoTermAdminForm(forms.ModelForm):
     definition = forms.CharField(required=False)
     context = forms.CharField(required=False)
     context_description = forms.CharField(required=False)
+    term = forms.CharField(required=False)
 
     class Meta:
         model = NeoTerm
-        fields = ['term']
+        #fields = ['lcvid']
+        exclude = ['lcvid']
+
+    def __init__(self, *args, **kwargs):
+        super(NeoTermAdminForm, self).__init__(*args, **kwargs)
+        self.fields['lcvid'].disabled = True
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
+    list_display = ('lcvid','uid',)
 
     def save_model(self, request, obj, form, change):
         term = form.cleaned_data.get('term')
         definition = form.cleaned_data.get('definition')
         context = form.cleaned_data.get('context')
         context_description = form.cleaned_data.get('context description')
+        temp_term = {'term': term, 'definition': definition, 'context': context, 'context_description': context_description}
         try: 
-            result = run_deconfliction()
-            if result is not None:
-                return redirect('admin:core_neoterm_changelist')
+            deconfliction_result = run_deconfliction([temp_term])
             
+            
+            return   
+                
 
-        #neoterm = {'term': term, 'definition': definition, 'context': context, 'context_description': context_description}
-        
-        #single_term_comparision(term, definition)
-        #do cosine stuff
-        # if cosine stuff valid 
-        #save term
+
         except Exception as e:
             logger.error(f"Error in save_model: {e}")
-            messages.error(request, f"Error in save_model: {e}")
+            
             return
-        logger.info(definition)
-        obj.save()
+    
 
 
 neomodel_admin.register(NeoTerm, NeoTermAdmin)
