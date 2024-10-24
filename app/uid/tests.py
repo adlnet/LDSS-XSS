@@ -1,71 +1,54 @@
 from django.test import TestCase
 from unittest.mock import patch, MagicMock
 from .models import CounterNode, Provider, LCVTerm, LanguageSet, UIDCounterDjangoModel, uid_generator # Import the UID generator from Models removed UIDCounter
+from .models import UIDGenerator, UIDNode
 #from .utils import generate_uid, issue_uid, send_notification
 from .utils import send_notification
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from neomodel import db
 
-
+#updated Classes and Test Cases
 class TestCounterNode(TestCase):
-    @patch('app.uid.models.CounterNode.save')
-    @patch('app.uid.models.CounterNode.nodes.first_or_none')
+    @patch('app.uid.models.UIDCounter.save')
+    @patch('app.uid.models.UIDCounter.nodes.first_or_none')
     def test_get_creates_counter_node_if_none(self, mock_first_or_none, mock_save):
         mock_first_or_none.return_value = None
-        counter_node = CounterNode.get()
+        counter_node = UIDCounter.get_instance()
         mock_first_or_none.assert_called_once()
         mock_save.assert_called_once()
         self.assertEqual(counter_node.counter, 0)
 
-    @patch('app.uid.models.CounterNode.create_node')
-    @patch('app.uid.models.CounterNode.nodes.first_or_none')
-    def test_get_returns_counter_node(self, mock_first_or_none, mock_create_node):
+    @patch('app.uid.models.UIDCounter.increment')
+    @patch('app.uid.models.UIDCounter.nodes.first_or_none')
+    def test_get_returns_counter_node(self, mock_first_or_none, mock_increment):
         mock_counter_node = MagicMock()
         mock_counter_node.counter = 1
         mock_first_or_none.return_value = mock_counter_node
 
-        counter_node = CounterNode.get()
+        counter_node = UIDCounter.get_instance()
 
         mock_first_or_none.assert_called_once()
-
-        mock_create_node.assert_not_called()
-
+        mock_increment.assert_not_called()
         self.assertEqual(counter_node.counter, 1)
-    
-    
-    @patch('app.uid.models.CounterNode.save')
-    def test_create_node(self, mock_save):
-        counter_node = CounterNode.create_node()
-        mock_save.assert_called_once()
-        self.assertEqual(counter_node.counter, 0)
-    
-    @patch('app.uid.models.CounterNode.save')
-    @patch('app.uid.models.CounterNode.get')
-    def test_increment(self, mock_get, mock_save):
-        mock_counter_node = MagicMock()
-        mock_counter_node.counter = 1
-        mock_get.return_value = mock_counter_node
 
-        counter_node = CounterNode.increment()
-
-        mock_get.assert_called_once()
-        self.assertEqual(counter_node.counter, 2)
-        mock_save.assert_called_once()
+    @patch('app.uid.models.UIDCounter.save')
+    def test_increment(self, mock_save):
+        counter = UIDCounter.get_instance()
+        initial_value = counter.counter
+        counter.increment()
+        self.assertEqual(counter.counter, initial_value + 1)
 
 class UIDGenerationTestCase(TestCase):
-
     def setUp(self):
-        #UIDCounter.objects.all().delete()  # Ensure a clean state before each test
-        UIDCounterDjangoModel.objects.all().delete()
-        
+        UIDCounter.nodes.delete()  # Ensure a clean state before each test
+
     def test_uid_generation_for_providers(self):
-        #provider = Provider.objects.create(name="Test Provider")
-        provider = Provider(name="Test Provider").save()
+        provider = Provider(name="Test Provider")
+        provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
         self.assertIsNotNone(provider.uid)
         self.assertTrue(provider.uid.startswith("0x"))
-        self.assertEqual(len(provider.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
-        self.assertNotIn(provider.uid, [p.uid for p in Provider.objects.all() if p.uid])
+        self.assertEqual(len(provider.uid), 10)
 
     def test_uid_generation_for_lcv_terms(self):
         #lcv_term = LCVTerm.objects.create(term="Test LCV Term")

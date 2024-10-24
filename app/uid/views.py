@@ -3,7 +3,8 @@ from django.http import HttpResponse, HttpRequest, JsonResponse
 #from uuid import uuid5, NAMESPACE_URL
 import json
 from neomodel import db
-from .models import CounterNode, UIDNode, Provider, LCVTerm, UIDGenerator, LanguageSet
+from .models import CounterNode, Provider, LCVTerm, LanguageSet
+from .models import UIDGenerator, UIDNode
 from .forms import ProviderForm, LCVTermForm
 #from .utils import generate_uid # import generate_uid 
 
@@ -17,7 +18,6 @@ uid_generator = UIDGenerator()
 def generate_uid_node(request: HttpRequest):
     request_body = json.loads(request.body)
     print(request_body)
-    #request_body = json.loads(request.body)
     strict_parent_validation = request_body.get('strict_parent_validation', False)
     parent_uid = request_body.get('parent_uid', None)
     namespace = request_body.get('namespace', 'LCV') #??? Ask Hunter about where namespace is actually configured and is it different than just organization?

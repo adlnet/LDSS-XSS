@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib import admin
-from neomodel import StructuredNode, StringProperty, DateTimeProperty, BooleanProperty, IntegerProperty, RelationshipTo, RelationshipFrom
+from neomodel import StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom
+from neomodel import StructuredNode, IntegerProperty
 from datetime import datetime
 # from .utils import generate_uid # Import from generate_uid
 # import uuid
@@ -12,17 +13,20 @@ from datetime import datetime
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
     
-    @classmethod
-    def initialize(cls):
-        # Check if there are any existing UIDCounter nodes
-        if len(cls.nodes.all()) == 0:
-            cls.create_node()  # Create a new node if none exists
+   @classmethod
+    def get_instance(cls):
+        instance = cls.nodes.first_or_none()
+        if not instance:
+            instance = cls()
+            instance.save()
+        return instance  # Method create a new Counter node if none exists
 
     @classmethod
-    def create_node(cls):
-        counter_node = cls()
-        counter_node.save()
-        return counter_node
+    def increment(cls):
+        instance = cls.get_instance()
+        instance.counter += 1
+        instance.save()
+        return instance.counter # Method increments the counter and save its last place.
 
 # Create a Django model to facilitate admin management
 class UIDCounterDjangoModel(models.Model):
@@ -40,7 +44,8 @@ class UIDCounterDjangoModel(models.Model):
 # Refactored UID Generator that manages both Neo4j and DjangoNode
 class UIDGenerator:
     def __init__(self):
-        UIDCounter.initialize()  # Ensure the counter is initialized
+        self.counter = UIDCounter.get_instance()
+        #UIDCounter.initialize()  # Ensure the counter is initialized
         #UIDCounterDjangoModel.initialize()  # Ensure the Django model counter is initialized
         #self.counter_obj = UIDCounter.objects.get(id=1)
         self.counter_obj = UIDCounter.nodes.get_or_none()  # Get the counter node
@@ -50,8 +55,9 @@ class UIDGenerator:
 
     def generate_uid(self):
         #self.counter += 1
-        self.counter_obj.counter += 1
-        self.counter_obj.save()
+        uid_value = self.counter.increment()
+        #self.counter_obj.counter += 1
+        #self.counter_obj.save()
         #return f"UID{self.counter:06d}"  # Zero-padded to 6 digits
         return f"0x{self.counter_obj.counter:08x}"  # Now using hexadecimal for UID
 
