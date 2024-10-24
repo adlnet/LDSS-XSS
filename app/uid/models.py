@@ -6,20 +6,11 @@ from datetime import datetime
 # import uuid
 # import hashlib
 
-# Create your models here.
+# Updated Models now will utilize the Neo4j UIDCounter directly without depending on the Django ORM, while keeping the UIDCounterDjangoModel for admin management.
 
-#class UIDCounter(models.Model):
-    #counter = models.IntegerField(default=0)
-
-#Creating the UIDcounter as DjangoNode
+#Creating the UIDcounter as Neo4j Node
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
-
-    #@classmethod
-    #def initialize(cls):
-        # Ensure a counter exists in the Neo4j database
-     #   if cls.nodes.count() == 0:
-      #      cls().save()
     
     @classmethod
     def initialize(cls):
@@ -33,14 +24,8 @@ class UIDCounter(StructuredNode):
         counter_node.save()
         return counter_node
 
-#class UIDGenerator:
- #   def __init__(self):
-  #      #self.counter = 0
-   #     self.counter_obj, created = UIDCounter.objects.get_or_create(id=1)
-
 # Create a Django model to facilitate admin management
 class UIDCounterDjangoModel(models.Model):
-    id = models.AutoField(primary_key=True)  # Needed for Django to manage the model
     counter_value = models.IntegerField(default=0)
 
     class Meta:
@@ -49,27 +34,34 @@ class UIDCounterDjangoModel(models.Model):
 
     @classmethod
     def initialize(cls):
-        cls.objects.get_or_create(id=1)  # Ensure a counter exists
+        """Ensure a counter exists in the Django model."""
+        cls.objects.get_or_create(id=1)  # Ensure a single instance
 
-# Refactore DjangoNode now
+# Refactored UID Generator that manages both Neo4j and DjangoNode
 class UIDGenerator:
     def __init__(self):
         UIDCounter.initialize()  # Ensure the counter is initialized
-        UIDCounterDjangoModel.initialize()  # Ensure the Django model counter is initialized
-        self.counter_obj = UIDCounter.objects.get(id=1)
+        #UIDCounterDjangoModel.initialize()  # Ensure the Django model counter is initialized
+        #self.counter_obj = UIDCounter.objects.get(id=1)
+        self.counter_obj = UIDCounter.nodes.get_or_none()  # Get the counter node
+
+        if self.counter_obj is None:
+            self.counter_obj = UIDCounter.create_node()  # Create if none exists
 
     def generate_uid(self):
         #self.counter += 1
         self.counter_obj.counter += 1
         self.counter_obj.save()
         #return f"UID{self.counter:06d}"  # Zero-padded to 6 digits
-        return f"0x{self.counter_obj.counter:08x}"  # Now using hex padding for UID
+        return f"0x{self.counter_obj.counter:08x}"  # Now using hexadecimal for UID
 
 # Intilialize the UID Generator
 uid_generator = UIDGenerator()
+
 #def generate_uid(input_string):
 #    return hashlib.sha256(input_string.encode()).hexdigest()[:36] #Using a Hashlib we are generating our own UID.
 
+#Neo4j UID Node
 class UIDNode(StructuredNode):
     uid = StringProperty(default=lambda:uid_generator.generate_uid()) # Updated to use UID Generator counter
     # uid = StringProperty(default=lambda:generate_uid(str(datetime.now()))) # Updated string to no longer use uuid4
@@ -122,6 +114,7 @@ class UIDNode(StructuredNode):
             #nodes_to_visit.extend(lcv_terms_nodes)
         #return lcv_terms   
 
+#NEO4J counter node
 class CounterNode(StructuredNode):
     counter = IntegerProperty(default=0)
     updated_at = DateTimeProperty(default=lambda: datetime.now())
