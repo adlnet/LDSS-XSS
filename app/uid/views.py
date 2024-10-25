@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpRequest, JsonResponse
 #from uuid import uuid5, NAMESPACE_URL
 import json
+import logging
 from neomodel import db
 from .models import CounterNode, Provider, LCVTerm, LanguageSet
 from .models import UIDGenerator, UIDNode
