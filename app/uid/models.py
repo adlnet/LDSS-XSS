@@ -59,13 +59,11 @@ class UIDCounterDjangoModel(models.Model):
         """Ensure a counter exists in the Django model."""
         cls.objects.get_or_create(id=1)  # Ensure a single instance
         
-# Initialize UIDGenerator after confirming Neo4j is available
-if not check_neo4j_connection():
-    raise RuntimeError("Neo4j service is not available.")
-
-# Refactored UID Generator that manages both Neo4j and DjangoNode
+#  Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
 class UIDGenerator:
     def __init__(self):
+        if not check_neo4j_connection():
+            raise RuntimeError("Neo4j service is not available.")
         self.counter = UIDCounter.get_instance()
         self.counter_obj = UIDCounter.nodes.get_or_none()
         if self.counter_obj is None:
