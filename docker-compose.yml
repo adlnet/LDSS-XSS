@@ -29,7 +29,7 @@ services:
     ports:
       - "8010:8020"
     command: >
-      sh -c ". /opt/app/start-app.sh"
+      sh -c "python manage.py makemigrations && python manage.py migrate && . /opt/app/start-app.sh"
     environment:
       DB_NAME: "${DB_NAME}"
       DB_USER: "${DB_USER}"

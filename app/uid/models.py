@@ -6,14 +6,23 @@ from datetime import datetime
 # Creating the UIDCounter as Neo4j Node
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
+    
+    _cached_instance = None #added for caching
 
     @classmethod
     def get_instance(cls):
-        instance = cls.nodes.first_or_none()
-        if not instance:
-            instance = cls()
-            instance.save()
-        return instance
+        if cls._cached_instance is None:
+            cls._cached_instance = cls.nodes.first_or_none()
+            if not cls._cached_instance:
+                cls._cached_instance = cls()
+                cls._cached_instance.save()
+        return cls._cached_instance
+        
+        #instance = cls.nodes.first_or_none()
+        #if not instance:
+         #   instance = cls()
+         #   instance.save()
+       # return instance
 
     @classmethod
     def increment(cls):
