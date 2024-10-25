@@ -59,7 +59,6 @@ class UIDGenerator:
         uid_value = self.counter.increment()
         #self.counter_obj.counter += 1
         #self.counter_obj.save()
-        #return f"UID{self.counter:06d}"  # Zero-padded to 6 digits
         return f"0x{self.counter_obj.counter:08x}"  # Now using hexadecimal for UID
 
 # Intilialize the UID Generator
@@ -71,8 +70,6 @@ uid_generator = UIDGenerator()
 #Neo4j UID Node
 class UIDNode(StructuredNode):
     uid = StringProperty(default=lambda:uid_generator.generate_uid()) # Updated to use UID Generator counter
-    # uid = StringProperty(default=lambda:generate_uid(str(datetime.now()))) # Updated string to no longer use uuid4
-    # uid = StringProperty(default=lambda:str(uuid.uuid4())) # UUID if UID is not provided to ensure uniqueness and avoids conflits.
     namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True) # Better time stamp handeling.
     created_at = DateTimeProperty(default_now=True)
@@ -152,12 +149,30 @@ class Provider(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
+    
+# Django Provider Model for Admin
+class ProviderDjangoModel(models.Model):
+    uid = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        verbose_name = "Provider"
+        verbose_name_plural = "Providers"
 
 class LCVTerm(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()  # Adjust as needed
     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+    
+# Django LCVTerm Model for Admin
+class LCVTermDjangoModel(models.Model):
+    uid = models.CharField(max_length=255, unique=True)
+    term = models.CharField(max_length=255)
+
+    class Meta:
+        verbose_name = "LCV Term"
+        verbose_name_plural = "LCV Terms"
 
 # LanguageSet now a Node
 class LanguageSet(StructuredNode):
@@ -178,3 +193,13 @@ class LanguageSet(StructuredNode):
 class UIDCounterAdmin(admin.ModelAdmin):
     list_display = ('id', 'counter_value')
     search_fields = ('id',)
+    
+@admin.register(ProviderDjangoModel)
+class ProviderAdmin(admin.ModelAdmin):
+    list_display = ('uid', 'name')
+    search_fields = ('name',)
+
+@admin.register(LCVTermDjangoModel)
+class LCVTermAdmin(admin.ModelAdmin):
+    list_display = ('uid', 'term')
+    search_fields = ('term',)
