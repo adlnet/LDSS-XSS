@@ -1,5 +1,5 @@
 from django.contrib import admin
-#from .models import Provider, LCVTerm
+from .models import Provider, LCVTerm
 from .models import ProviderDjangoModel, LCVTermDjangoModel
 from .models import UIDCounterDjangoModel  # Import the Django model
 
@@ -17,5 +17,5 @@ class LCVTermAdmin(admin.ModelAdmin):
     list_display = ('uid', 'term')
     search_fields = ('term',)
 
-admin.site.register(Provider, ProviderAdmin)
-admin.site.register(LCVTerm, LCVTermAdmin)
+admin.site.register(ProviderDjangoModel, ProviderAdmin)
+admin.site.register(LCVTermDjangoModel, LCVTermAdmin)
