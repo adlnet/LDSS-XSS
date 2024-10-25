@@ -1,12 +1,21 @@
 from django import forms
-from .models import Provider, LCVTerm
+from .models import Provider, LCVTerm  # Import Neo4j models directly
 
-class ProviderForm(forms.ModelForm):
-    class Meta:
-        model = Provider
-        fields = ['name']
+class ProviderForm(forms.Form):
+    uid = forms.CharField(max_length=255)
+    name = forms.CharField(max_length=255)
 
-class LCVTermForm(forms.ModelForm):
-    class Meta:
-        model = LCVTerm
-        fields = ['term', 'ld_lcv_structure']
+    def save(self):
+        provider = Provider(uid=self.cleaned_data['uid'], name=self.cleaned_data['name'])
+        provider.save()
+        return provider
+
+class LCVTermForm(forms.Form):
+    uid = forms.CharField(max_length=255)
+    term = forms.CharField(max_length=255)
+
+    def save(self):
+        lcv_term = LCVTerm(uid=self.cleaned_data['uid'], term=self.cleaned_data['term'])
+        lcv_term.save()
+        return lcv_term
+
