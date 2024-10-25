@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.http import HttpRequest
 
 from deconfliction_service.views import run_deconfliction
@@ -148,6 +148,17 @@ class NeoTermAdmin(admin.ModelAdmin):
 
         # Set the term on the NeoTerm instance and save it
         obj.term = term  # Assuming 'term' is a field in NeoTerm
+
+        # Check for existing definitions
+        # TODO: instead of doing string matching,
+        #       replace with elasticsearch cosine comparison
+        existing_definitions = NeoDefinition.nodes.filter(definition=definition_text)
+
+        if existing_definitions:
+            messages.set_level(request, messages.ERROR)
+            messages.error(request, f"A term with the definition of '{definition_text}' already exists.")
+            return
+
         obj.save()  # Save the NeoTerm instance first
 
         try:
