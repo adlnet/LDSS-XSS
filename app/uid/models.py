@@ -7,7 +7,7 @@ from neomodel import db  # Ensure you have access to the Neo4j database connecti
 
 # Function to check Neo4j connection
 def check_neo4j_connection():
-    for _ in range(5):  # Retry a few times
+    for attempt in range(5):  # Retry a few times
         try:
             db.cypher_query("RETURN 1")  # Simple query to test connection
             return True
