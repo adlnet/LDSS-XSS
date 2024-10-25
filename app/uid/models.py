@@ -2,6 +2,8 @@ from django.db import models
 # from django.contrib import admin
 from neomodel import StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty
 from datetime import datetime
+import time  # Import time module to use sleep
+from neomodel import db  # Ensure you have access to the Neo4j database connection
 
 # Function to check Neo4j connection
 def check_neo4j_connection():
