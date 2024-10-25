@@ -12,10 +12,13 @@ class UIDCounter(StructuredNode):
     @classmethod
     def get_instance(cls):
         if cls._cached_instance is None:
-            cls._cached_instance = cls.nodes.first_or_none()
-            if not cls._cached_instance:
-                cls._cached_instance = cls()
-                cls._cached_instance.save()
+            try:
+                cls._cached_instance = cls.nodes.first_or_none()
+                if not cls._cached_instance:
+                    cls._cached_instance = cls()
+                    cls._cached_instance.save()
+            except Exception as e:
+                print(f"Error accessing Neo4j: {e}")  # Handle logging or errors appropriately
         return cls._cached_instance
         
         #instance = cls.nodes.first_or_none()
@@ -43,6 +46,10 @@ class UIDCounterDjangoModel(models.Model):
     def initialize(cls):
         """Ensure a counter exists in the Django model."""
         cls.objects.get_or_create(id=1)  # Ensure a single instance
+        
+# Initialize UIDGenerator after confirming Neo4j is available
+if not check_neo4j_connection():
+    raise RuntimeError("Neo4j service is not available.")
 
 # Refactored UID Generator that manages both Neo4j and DjangoNode
 class UIDGenerator:
