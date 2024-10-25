@@ -5,7 +5,7 @@ from deconfliction_service.views import run_deconfliction
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
-from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm
+from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContextDescription
 from django import forms
 
 import logging
@@ -127,36 +127,59 @@ class NeoTermAdminForm(forms.ModelForm):
 
     class Meta:
         model = NeoTerm
-        #fields = ['lcvid']
-        exclude = ['lcvid']
+        fields = ['lcvid']
+        # exclude = []
 
     def __init__(self, *args, **kwargs):
         super(NeoTermAdminForm, self).__init__(*args, **kwargs)
-        self.fields['lcvid'].disabled = True
+        if 'lcvid' in self.fields:
+            self.fields['lcvid'].disabled = True  # Safe check
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
-    list_display = ('lcvid','uid',)
+    list_display = ('lcvid', 'uid',)
 
     def save_model(self, request, obj, form, change):
+        # Get cleaned data from the form
         term = form.cleaned_data.get('term')
-        definition = form.cleaned_data.get('definition')
-        context = form.cleaned_data.get('context')
-        context_description = form.cleaned_data.get('context description')
-        temp_term = {'term': term, 'definition': definition, 'context': context, 'context_description': context_description}
-        try: 
-            deconfliction_result = run_deconfliction([temp_term])
-            
-            
-            return   
-                
+        definition_text = form.cleaned_data.get('definition')
+        context_text = form.cleaned_data.get('context')
+        context_description_text = form.cleaned_data.get('context_description')
 
+        # Set the term on the NeoTerm instance and save it
+        obj.term = term  # Assuming 'term' is a field in NeoTerm
+        obj.save()  # Save the NeoTerm instance first
+
+        try:
+            # Create and save the NeoDefinition node
+            definition_node = NeoDefinition()
+            definition_node.definition = definition_text  # Set the definition text
+            definition_node.save()  # Save to get its ID
+
+            # Create and save the NeoContext node
+            context_node = NeoContext()
+            context_node.context = context_text  # Set the context text
+            context_node.context_description = context_description_text  # Set the context description
+            context_node.save()  # Save to get its ID
+
+            # Create and save the NeoContextDescription node
+            context_description_node = NeoContextDescription()
+            context_description_node.context_description = context_description_text  # Set the context description
+            context_description_node.save()  # Save to get its ID
+
+            # Establish relationships using the create method
+            obj.definition.connect(definition_node)  # Assuming `definition` is a relationship field in NeoTerm
+            obj.context.connect(context_node)  # Assuming `context` is a relationship field in NeoTerm
+            context_node.definition_node.connect(definition_node)  # Establish a relationship from context to definition
+            context_description_node.definition.connect(definition_node)  # Establish a relationship from context description to definition
+
+            logger.info("Successfully created nodes and relationships.")
 
         except Exception as e:
             logger.error(f"Error in save_model: {e}")
-            
-            return
-    
+
+        return super().save_model(request, obj, form, change)  # Call the parent class's save_model
+
 
 
 neomodel_admin.register(NeoTerm, NeoTermAdmin)

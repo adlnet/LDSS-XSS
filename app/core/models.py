@@ -437,8 +437,9 @@ class TransformationLedger(TimeStampedModel):
 class NeoTerm(DjangoNode):
     identifier = UniqueIdProperty()
     uid = StringProperty(unique_index=True, )
-    lcvid = StringProperty(required=True)
+    lcvid = StringProperty()
     definition = RelationshipTo('NeoDefinition', 'DEFINITION_OF')
+    context = RelationshipTo('NeoContext', 'HAS_CONTEXT')
     alias = RelationshipTo('NeoAlias', 'ALIAS_OF')
     class Meta:
         app_label = 'core'
@@ -461,6 +462,10 @@ class NeoContext(DjangoNode):
 
     class Meta:
         app_label = 'core'
+
+class NeoContextDescription(DjangoNode):
+    definition = RelationshipTo('NeoDefinition', 'CONTEXT_DESCRIPTION_TO_DEFINITION')
+    context_description = StringProperty(required=True)
 
 class NeoDefinition(DjangoNode):
     identifier = UniqueIdProperty()
