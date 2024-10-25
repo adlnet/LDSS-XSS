@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Provider, LCVTerm
+#from .models import Provider, LCVTerm
+from .models import ProviderDjangoModel, LCVTermDjangoModel
 from .models import UIDCounterDjangoModel  # Import the Django model
 
 # Admin registration for UIDCounterDjangoModel

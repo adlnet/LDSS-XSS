@@ -104,13 +104,19 @@ class Provider(StructuredNode):
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
 # Django Provider Model for Admin
-# class ProviderDjangoModel(models.Model):
-#     uid = models.CharField(max_length=255, unique=True)
-#     name = models.CharField(max_length=255)
+class ProviderDjangoModel(models.Model):
+    uid = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
 
-#     class Meta:
-#         verbose_name = "Provider"
-#         verbose_name_plural = "Providers"
+    def save(self, *args, **kwargs):
+        # Create or update the Neo4j Provider node
+        provider = Provider(uid=self.uid, name=self.name)
+        provider.save()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Provider"
+        verbose_name_plural = "Providers"
 
 class LCVTerm(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
@@ -119,13 +125,19 @@ class LCVTerm(StructuredNode):
     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
 # Django LCVTerm Model for Admin
-# class LCVTermDjangoModel(models.Model):
-#     uid = models.CharField(max_length=255, unique=True)
-#     term = models.CharField(max_length=255)
+class LCVTermDjangoModel(models.Model):
+    uid = models.CharField(max_length=255, unique=True)
+    term = models.CharField(max_length=255)
 
-#     class Meta:
-#         verbose_name = "LCV Term"
-#         verbose_name_plural = "LCV Terms"
+    def save(self, *args, **kwargs):
+        # Create or update the Neo4j LCVTerm node
+        lcv_term = LCVTerm(uid=self.uid, term=self.term)
+        lcv_term.save()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "LCV Term"
+        verbose_name_plural = "LCV Terms"
 
 # LanguageSet now a Node
 class LanguageSet(StructuredNode):
