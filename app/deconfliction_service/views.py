@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
 from typing import List
+from uuid import uuid4
 
 logger = logging.getLogger('dict_config_logger')
 model = SentenceTransformer('all-mpnet-base-v2')
@@ -33,19 +34,17 @@ from .utils import ElasticsearchClient
 #     pass
 
 
-def run_deconfliction(terms: List[str]):
-
+def run_deconfliction(definition):
     try:
         es = ElasticsearchClient()
         es.connect()
         es.ensure_index()
-
-        for term in terms:
-            definition_embedding  = es.create_embedding(term)
-            es.check_similarity(term, definition_embedding)
-            es.index_document(term, definition_embedding)
+        definition_embedding  = es.create_embedding(definition)
+        response = es.check_similarity(definition_embedding)
+        return response
     except Exception as e:
         logger.error(f"Error in run_deconfliction: {e}")
+        raise e
     finally:
         if es is not None:
             es.disconnect()

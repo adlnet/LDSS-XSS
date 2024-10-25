@@ -7,7 +7,7 @@ from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
 from django_neomodel import admin as neomodel_admin
 from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContextDescription
 from django import forms
-
+from uuid import uuid4
 import logging
 
 logger = logging.getLogger('dict_config_logger')
@@ -120,89 +120,141 @@ class TermAdmin(admin.ModelAdmin):
         return form
 
 class NeoTermAdminForm(forms.ModelForm):
-    uid = forms.CharField(required=True) # Supposed to be auto-generated but we might have to input manually for proof of concept
+    term = forms.CharField(required=False)
     definition = forms.CharField(required=False)
     context = forms.CharField(required=False)
     context_description = forms.CharField(required=False)
-    term = forms.CharField(required=False)
 
     class Meta:
         model = NeoTerm
         fields = ['lcvid']
-        # exclude = []
 
     def __init__(self, *args, **kwargs):
         super(NeoTermAdminForm, self).__init__(*args, **kwargs)
         if 'lcvid' in self.fields:
             self.fields['lcvid'].disabled = True  # Safe check
 
+# class NeoTermAdmin(admin.ModelAdmin):
+#     form = NeoTermAdminForm
+#     list_display = ('lcvid', 'uid',)
+
+#     def save_model(self, request, obj, form, change):
+#         # Get cleaned data from the form
+#         try:
+#             term = form.cleaned_data.get('term')
+#             definition_text = form.cleaned_data.get('definition')
+#             context_text = form.cleaned_data.get('context')
+#             context_description_text = form.cleaned_data.get('context_description')
+#             uid = form.cleaned_data.get('uid') 
+
+#         # Set the term on the NeoTerm instance and save it
+#         #obj.term = term  # Assuming 'term' is a field in NeoTerm
+
+#         # # Check for existing definitions
+#         # # TODO: instead of doing string matching,
+#         # #       replace with elasticsearch cosine comparison
+#         # existing_definitions = NeoDefinition.nodes.filter(definition=definition_text)
+
+        
+#             response = run_deconfliction(definition_text)
+
+#             if response['type'] == 'unique':
+#                 logger.info("Unique definition")
+#                 newTerm = NeoTerm(uid=uuid4(), term=term)
+            
+
+#         except Exception as e:
+#             logger.error(f"Error in run_deconfliction: {e}")
+#             messages.error(request, f'Error in run_deconfliction: {e}')
+            
+        
+#     def delete_model(self, request, obj):
+
+#         try:
+#             messages.error(request, f'You cannot delete NeoTerm instances.')
+            
+#         except Exception as e:
+#             messages.error(request, f'Error deleting NeoTerm: {e}')   
+
+
+#         # if existing_definitions:
+#         #     messages.set_level(request, messages.ERROR)
+#         #     messages.error(request, f"A term with the definition of '{definition_text}' already exists.")
+#         #     return
+        
+#         # Below code does not execute since uid is unique
+#         # Keeping uid as unique vs making not unique and throwing below custom error? 
+
+#         #existing_uid = NeoTerm.nodes.filter(uid=uid).first()
+
+#         # if existing_uid:
+#         #     messages.set_level(request, messages.ERROR)
+#         #     messages.error(request, f"Deviation error: UID '{uid}' is already mapped to a definition.")
+#         #     return
+
+#         # obj.save()  # Save the NeoTerm instance first
+
+#         # try:
+#         #     # Create and save the NeoDefinition node
+#         #     definition_node = NeoDefinition()
+#         #     definition_node.definition = definition_text  # Set the definition text
+#         #     definition_node.save()  # Save to get its ID
+
+#         #     # Create and save the NeoContext node
+#         #     context_node = NeoContext()
+#         #     context_node.context = context_text  # Set the context text
+#         #     context_node.context_description = context_description_text  # Set the context description
+#         #     context_node.save()  # Save to get its ID
+
+#         #     # Create and save the NeoContextDescription node
+#         #     context_description_node = NeoContextDescription()
+#         #     context_description_node.context_description = context_description_text  # Set the context description
+#         #     context_description_node.save()  # Save to get its ID
+
+#         #     # Establish relationships using the create method
+#         #     obj.definition.connect(definition_node)  # Assuming `definition` is a relationship field in NeoTerm
+#         #     obj.context.connect(context_node)  # Assuming `context` is a relationship field in NeoTerm
+#         #     context_node.definition_node.connect(definition_node)  # Establish a relationship from context to definition
+#         #     context_description_node.definition.connect(definition_node)  # Establish a relationship from context description to definition
+
+#         #     logger.info("Successfully created nodes and relationships.")
+
+#         # except Exception as e:
+#         #     logger.error(f"Error in save_model: {e}")
+
+        
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
     list_display = ('lcvid', 'uid',)
 
     def save_model(self, request, obj, form, change):
-        # Get cleaned data from the form
-        term = form.cleaned_data.get('term')
-        definition_text = form.cleaned_data.get('definition')
-        context_text = form.cleaned_data.get('context')
-        context_description_text = form.cleaned_data.get('context_description')
-        uid = form.cleaned_data.get('uid')
-
-        # Set the term on the NeoTerm instance and save it
-        obj.term = term  # Assuming 'term' is a field in NeoTerm
-
-        # Check for existing definitions
-        # TODO: instead of doing string matching,
-        #       replace with elasticsearch cosine comparison
-        existing_definitions = NeoDefinition.nodes.filter(definition=definition_text)
-
-        if existing_definitions:
-            messages.set_level(request, messages.ERROR)
-            messages.error(request, f"A term with the definition of '{definition_text}' already exists.")
-            return
-        
-        # Below code does not execute since uid is unique
-        # Keeping uid as unique vs making not unique and throwing below custom error? 
-
-        existing_uid = NeoTerm.nodes.filter(uid=uid).first()
-
-        if existing_uid:
-            messages.set_level(request, messages.ERROR)
-            messages.error(request, f"Deviation error: UID '{uid}' is already mapped to a definition.")
-            return
-
-        obj.save()  # Save the NeoTerm instance first
-
         try:
-            # Create and save the NeoDefinition node
-            definition_node = NeoDefinition()
-            definition_node.definition = definition_text  # Set the definition text
-            definition_node.save()  # Save to get its ID
+            # Extract form data
+            term = form.cleaned_data.get('term')
+            definition_text = form.cleaned_data.get('definition')
+            uid = form.cleaned_data.get('uid')
 
-            # Create and save the NeoContext node
-            context_node = NeoContext()
-            context_node.context = context_text  # Set the context text
-            context_node.context_description = context_description_text  # Set the context description
-            context_node.save()  # Save to get its ID
+            # Perform deconfliction or any necessary checks
+            response = run_deconfliction(definition_text)
 
-            # Create and save the NeoContextDescription node
-            context_description_node = NeoContextDescription()
-            context_description_node.context_description = context_description_text  # Set the context description
-            context_description_node.save()  # Save to get its ID
+            if response['type'] == 'unique':
+                logger.info("Unique definition")
+                obj.uid = uid or str(uuid4())  # Set UID if not provided
+                obj.term = term
+                obj.save()  # Directly save Neo4j object
 
-            # Establish relationships using the create method
-            obj.definition.connect(definition_node)  # Assuming `definition` is a relationship field in NeoTerm
-            obj.context.connect(context_node)  # Assuming `context` is a relationship field in NeoTerm
-            context_node.definition_node.connect(definition_node)  # Establish a relationship from context to definition
-            context_description_node.definition.connect(definition_node)  # Establish a relationship from context description to definition
-
-            logger.info("Successfully created nodes and relationships.")
+                # Feedback for success without calling super().save_model
+                messages.success(request, "NeoTerm saved successfully.")
+            else:
+                messages.error(request, f"Term with this definition already exists as {response['type']}.")
 
         except Exception as e:
-            logger.error(f"Error in save_model: {e}")
+            logger.error(f"Error in run_deconfliction: {e}")
+            messages.error(request, f"Error in run_deconfliction: {e}")
 
-        return super().save_model(request, obj, form, change)  # Call the parent class's save_model
-
+    def delete_model(self, request, obj):
+        # Prevent deletion by overriding delete_model without logging
+        messages.error(request, "You cannot delete NeoTerm instances.")
 
 
 neomodel_admin.register(NeoTerm, NeoTermAdmin)

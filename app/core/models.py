@@ -435,12 +435,16 @@ class TransformationLedger(TimeStampedModel):
             self.schema_mapping_file = None
 
 class NeoTerm(DjangoNode):
-    identifier = UniqueIdProperty()
     uid = StringProperty(unique_index=True, )
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
-    definition = RelationshipTo('NeoDefinition', 'DEFINITION_OF')
-    context = RelationshipTo('NeoContext', 'HAS_CONTEXT')
-    alias = RelationshipTo('NeoAlias', 'ALIAS_OF')
+    definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
+    context = RelationshipFrom('NeoContext', 'TERM_IN')
+    alias = RelationshipTo('NeoAlias', 'POINTS_TO')
+
+    @property
+    def pk(self):
+        return self.uid
+
     class Meta:
         app_label = 'core'
 
@@ -456,21 +460,23 @@ class NeoAlias(DjangoNode):
 class NeoContext(DjangoNode):
     identifier = UniqueIdProperty()
     context = StringProperty(unique = True)
-    context_description = StringProperty(required=True)
+    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE')
     alias = RelationshipFrom('NeoAlias', 'ALIAS_TO_CONTEXT')
-    definition_node = RelationshipTo('NeoDefinition', 'CONTEXT_TO' )
+    definition_node = RelationshipFrom('NeoDefinition', 'VALID_IN' )
 
     class Meta:
         app_label = 'core'
 
 class NeoContextDescription(DjangoNode):
-    definition = RelationshipTo('NeoDefinition', 'CONTEXT_DESCRIPTION_TO')
+    definition = RelationshipTo('NeoDefinition', 'BASED_ON')
+    context = RelationshipTo('NeoContext', 'RATIONALE')
     context_description = StringProperty(required=True)
 
 class NeoDefinition(DjangoNode):
-    identifier = UniqueIdProperty()
     definition = StringProperty(required=True)
-    vector = ArrayProperty()
+    context = RelationshipTo('NeoContext', 'VALID_IN')
+    context_description = RelationshipFrom('NeoContext', 'BASED_ON')
+    term = RelationshipFrom('NeoTerm', 'POINTS_TO')
     
     class Meta:
         app_label = 'core'
