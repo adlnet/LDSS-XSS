@@ -8,11 +8,21 @@ from .models import UIDGenerator, UIDNode
 from .forms import ProviderForm, LCVTermForm
 #from .utils import generate_uid # import generate_uid 
 
+# Set up logging to capture errors and important information
+logger = logging.getLogger(__name__)
+
+# Attempt to initialize the UID generator
+try:
+    uid_generator = UIDGenerator()
+except RuntimeError as e:
+    # Log an error if UIDGenerator fails to initialize (e.g., due to Neo4j connection issues)
+    logger.error(f"Failed to initialize UIDGenerator: {e}")
+    uid_generator = None  # Handle initialization failure appropriately
 
 MAX_CHILDREN = 2**32 -1
 
 # Initialzie the UID generator
-uid_generator = UIDGenerator()
+#uid_generator = UIDGenerator()
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):
