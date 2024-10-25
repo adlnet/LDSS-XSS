@@ -58,7 +58,20 @@ class UIDCounterDjangoModel(models.Model):
     def initialize(cls):
         """Ensure a counter exists in the Django model."""
         cls.objects.get_or_create(id=1)  # Ensure a single instance
-        
+
+# Initialize the UID Generator
+#uid_generator = UIDGenerator()
+
+uid_generator = None
+
+def get_uid_generator():
+    global uid_generator
+    if uid_generator is None:
+        if not check_neo4j_connection():  # Check connection when first needed
+            raise RuntimeError("Neo4j service is not available.")
+        uid_generator = UIDGenerator()
+    return uid_generator
+
 #  Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
 class UIDGenerator:
     def __init__(self):
@@ -72,9 +85,6 @@ class UIDGenerator:
     def generate_uid(self):
         uid_value = self.counter.increment()
         return f"0x{self.counter_obj.counter:08x}"
-
-# Initialize the UID Generator
-uid_generator = UIDGenerator()
 
 # Neo4j UID Node
 class UIDNode(StructuredNode):
@@ -125,7 +135,7 @@ class CounterNode(StructuredNode):
 
 # Provider and LCVTerms now Nodes
 class Provider(StructuredNode):
-    uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
+    uid = StringProperty(default=lambda: get_uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
@@ -145,7 +155,7 @@ class ProviderDjangoModel(models.Model):
         verbose_name_plural = "Providers"
 
 class LCVTerm(StructuredNode):
-    uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
+    uid = StringProperty(default=lambda: get_uid_generator.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
@@ -167,7 +177,7 @@ class LCVTermDjangoModel(models.Model):
 
 # LanguageSet now a Node
 class LanguageSet(StructuredNode):
-    uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
+    uid = StringProperty(default=lambda: get_uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     terms = RelationshipTo(LCVTerm, 'HAS_TERM')
 
