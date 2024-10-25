@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib import admin
+# from django.contrib import admin
 from neomodel import StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty
 from datetime import datetime
 
@@ -23,16 +23,16 @@ class UIDCounter(StructuredNode):
         return instance.counter
 
 # Create a Django model to facilitate admin management
-class UIDCounterDjangoModel(models.Model):
-    counter_value = models.IntegerField(default=0)
+# class UIDCounterDjangoModel(models.Model):
+#     counter_value = models.IntegerField(default=0)
 
-    class Meta:
-        verbose_name = "UID Counter"
-        verbose_name_plural = "UID Counters"
+#     class Meta:
+#         verbose_name = "UID Counter"
+#         verbose_name_plural = "UID Counters"
 
-    @classmethod
-    def initialize(cls):
-        cls.objects.get_or_create(id=1)
+#     @classmethod
+#     def initialize(cls):
+#         cls.objects.get_or_create(id=1)
 
 # Refactored UID Generator that manages both Neo4j and DjangoNode
 class UIDGenerator:
@@ -58,7 +58,7 @@ class UIDNode(StructuredNode):
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
-    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+    provider = RelationshipFrom('NeoProvider', 'HAS_LCV_TERM')
 
     @classmethod
     def get_node_by_uid(cls, uid: str, namespace: str):
@@ -97,34 +97,34 @@ class CounterNode(StructuredNode):
         return counter
 
 # Provider and LCVTerms now Nodes
-class Provider(StructuredNode):
+class NeoProvider(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
 # Django Provider Model for Admin
-class ProviderDjangoModel(models.Model):
-    uid = models.CharField(max_length=255, unique=True)
-    name = models.CharField(max_length=255)
+# class ProviderDjangoModel(models.Model):
+#     uid = models.CharField(max_length=255, unique=True)
+#     name = models.CharField(max_length=255)
 
-    class Meta:
-        verbose_name = "Provider"
-        verbose_name_plural = "Providers"
+#     class Meta:
+#         verbose_name = "Provider"
+#         verbose_name_plural = "Providers"
 
 class LCVTerm(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
-    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+    provider = RelationshipFrom('NeoProvider', 'HAS_LCV_TERM')
 
 # Django LCVTerm Model for Admin
-class LCVTermDjangoModel(models.Model):
-    uid = models.CharField(max_length=255, unique=True)
-    term = models.CharField(max_length=255)
+# class LCVTermDjangoModel(models.Model):
+#     uid = models.CharField(max_length=255, unique=True)
+#     term = models.CharField(max_length=255)
 
-    class Meta:
-        verbose_name = "LCV Term"
-        verbose_name_plural = "LCV Terms"
+#     class Meta:
+#         verbose_name = "LCV Term"
+#         verbose_name_plural = "LCV Terms"
 
 # LanguageSet now a Node
 class LanguageSet(StructuredNode):
@@ -139,18 +139,18 @@ class LanguageSet(StructuredNode):
         return self.terms.all()
 
 # Register UIDCounterDjangoModel in the admin
-@admin.register(UIDCounterDjangoModel)
-class UIDCounterAdmin(admin.ModelAdmin):
-    list_display = ('id', 'counter_value')
-    search_fields = ('id',)
+# @admin.register(UIDCounterDjangoModel)
+# class UIDCounterAdmin(admin.ModelAdmin):
+#     list_display = ('id', 'counter_value')
+#     search_fields = ('id',)
 
-@admin.register(ProviderDjangoModel)
-class ProviderAdmin(admin.ModelAdmin):
-    list_display = ('uid', 'name')
-    search_fields = ('name',)
+# @admin.register(ProviderDjangoModel)
+# class ProviderAdmin(admin.ModelAdmin):
+#     list_display = ('uid', 'name')
+#     search_fields = ('name',)
 
-@admin.register(LCVTermDjangoModel)
-class LCVTermAdmin(admin.ModelAdmin):
-    list_display = ('uid', 'term')
-    search_fields = ('term',)
+# @admin.register(LCVTermDjangoModel)
+# class LCVTermAdmin(admin.ModelAdmin):
+#     list_display = ('uid', 'term')
+#     search_fields = ('term',)
 
