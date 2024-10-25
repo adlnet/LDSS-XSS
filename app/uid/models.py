@@ -58,7 +58,7 @@ class UIDNode(StructuredNode):
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
-    provider = RelationshipFrom('NeoProvider', 'HAS_LCV_TERM')
+    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
     @classmethod
     def get_node_by_uid(cls, uid: str, namespace: str):
@@ -97,7 +97,7 @@ class CounterNode(StructuredNode):
         return counter
 
 # Provider and LCVTerms now Nodes
-class NeoProvider(StructuredNode):
+class Provider(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
@@ -115,7 +115,7 @@ class LCVTerm(StructuredNode):
     uid = StringProperty(default=lambda: uid_generator.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
-    provider = RelationshipFrom('NeoProvider', 'HAS_LCV_TERM')
+    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
 # Django LCVTerm Model for Admin
 # class LCVTermDjangoModel(models.Model):
