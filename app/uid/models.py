@@ -3,6 +3,16 @@ from django.db import models
 from neomodel import StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty
 from datetime import datetime
 
+# Function to check Neo4j connection
+def check_neo4j_connection():
+    for _ in range(5):  # Retry a few times
+        try:
+            db.cypher_query("RETURN 1")  # Simple query to test connection
+            return True
+        except Exception:
+            time.sleep(1)  # Wait before retrying
+    return False
+
 # Creating the UIDCounter as Neo4j Node
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
