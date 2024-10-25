@@ -22,17 +22,18 @@ class UIDCounter(StructuredNode):
         instance.save()
         return instance.counter
 
-# Create a Django model to facilitate admin management
-# class UIDCounterDjangoModel(models.Model):
-#     counter_value = models.IntegerField(default=0)
+# Django model for admin management
+class UIDCounterDjangoModel(models.Model):
+    counter_value = models.IntegerField(default=0)
 
-#     class Meta:
-#         verbose_name = "UID Counter"
-#         verbose_name_plural = "UID Counters"
+    class Meta:
+        verbose_name = "UID Counter"
+        verbose_name_plural = "UID Counters"
 
-#     @classmethod
-#     def initialize(cls):
-#         cls.objects.get_or_create(id=1)
+    @classmethod
+    def initialize(cls):
+        """Ensure a counter exists in the Django model."""
+        cls.objects.get_or_create(id=1)  # Ensure a single instance
 
 # Refactored UID Generator that manages both Neo4j and DjangoNode
 class UIDGenerator:
