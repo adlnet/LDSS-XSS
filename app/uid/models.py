@@ -138,19 +138,3 @@ class LanguageSet(StructuredNode):
     def get_terms(self):
         return self.terms.all()
 
-# Register UIDCounterDjangoModel in the admin
-# @admin.register(UIDCounterDjangoModel)
-# class UIDCounterAdmin(admin.ModelAdmin):
-#     list_display = ('id', 'counter_value')
-#     search_fields = ('id',)
-
-# @admin.register(ProviderDjangoModel)
-# class ProviderAdmin(admin.ModelAdmin):
-#     list_display = ('uid', 'name')
-#     search_fields = ('name',)
-
-# @admin.register(LCVTermDjangoModel)
-# class LCVTermAdmin(admin.ModelAdmin):
-#     list_display = ('uid', 'term')
-#     search_fields = ('term',)
-
