@@ -120,6 +120,7 @@ class TermAdmin(admin.ModelAdmin):
         return form
 
 class NeoTermAdminForm(forms.ModelForm):
+    uid = forms.CharField(required=True) # Supposed to be auto-generated but we might have to input manually for proof of concept
     definition = forms.CharField(required=False)
     context = forms.CharField(required=False)
     context_description = forms.CharField(required=False)
@@ -145,6 +146,7 @@ class NeoTermAdmin(admin.ModelAdmin):
         definition_text = form.cleaned_data.get('definition')
         context_text = form.cleaned_data.get('context')
         context_description_text = form.cleaned_data.get('context_description')
+        uid = form.cleaned_data.get('uid')
 
         # Set the term on the NeoTerm instance and save it
         obj.term = term  # Assuming 'term' is a field in NeoTerm
@@ -157,6 +159,16 @@ class NeoTermAdmin(admin.ModelAdmin):
         if existing_definitions:
             messages.set_level(request, messages.ERROR)
             messages.error(request, f"A term with the definition of '{definition_text}' already exists.")
+            return
+        
+        # Below code does not execute since uid is unique
+        # Keeping uid as unique vs making not unique and throwing below custom error? 
+
+        existing_uid = NeoTerm.nodes.filter(uid=uid).first()
+
+        if existing_uid:
+            messages.set_level(request, messages.ERROR)
+            messages.error(request, f"Deviation error: UID '{uid}' is already mapped to a definition.")
             return
 
         obj.save()  # Save the NeoTerm instance first
