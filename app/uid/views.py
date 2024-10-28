@@ -95,7 +95,7 @@ def create_lcvterm(request):
     if request.method == 'POST':
         form = LCVTermForm(request.POST)
         if form.is_valid():
-            lcvterm = form.save(commit=False)
+            lcvterm = form.save()
             lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
             lcvterm.save()
             #form.save()

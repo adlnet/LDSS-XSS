@@ -4,6 +4,7 @@ from neomodel import StringProperty, DateTimeProperty, BooleanProperty, Relation
 from datetime import datetime
 import time  # Import time module to use sleep
 from neomodel import db  # Ensure you have access to the Neo4j database connection
+from django_neomodel import DjangoNode
 
 # Function to check Neo4j connection
 def check_neo4j_connection():
@@ -85,10 +86,13 @@ class UIDGenerator:
     def generate_uid(self):
         uid_value = self.counter.increment()
         return f"0x{self.counter_obj.counter:08x}"
+    
+
+uid_singleton = UIDGenerator()
 
 # Neo4j UID Node
-class UIDNode(StructuredNode):
-    uid = StringProperty(default=lambda: uid_generator.generate_uid())
+class UIDNode(DjangoNode):
+    uid = StringProperty(default=lambda: uid_singleton.generate_uid())
     namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True)
     created_at = DateTimeProperty(default_now=True)
@@ -106,9 +110,12 @@ class UIDNode(StructuredNode):
         uid_node = cls(uid=uid, namespace=namespace)
         uid_node.save()
         return uid_node
+    
+    class Meta:
+        app_label = 'uid'
 
 # Neo4j Counter Node
-class CounterNode(StructuredNode):
+class CounterNode(DjangoNode):
     counter = IntegerProperty(default=0)
     updated_at = DateTimeProperty(default=lambda: datetime.now())
 
@@ -132,12 +139,18 @@ class CounterNode(StructuredNode):
         counter.updated_at = datetime.now()
         counter.save()
         return counter
+    
+    class Meta: 
+        app_label = 'uid'
 
 # Provider and LCVTerms now Nodes
-class Provider(StructuredNode):
-    uid = StringProperty(default=lambda: get_uid_generator.generate_uid(), unique_index=True)
+class Provider(DjangoNode):
+    uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
+
+    class Meta:
+        app_label = 'uid'
 
 # Django Provider Model for Admin
 class ProviderDjangoModel(models.Model):
@@ -154,11 +167,15 @@ class ProviderDjangoModel(models.Model):
         verbose_name = "Provider"
         verbose_name_plural = "Providers"
 
-class LCVTerm(StructuredNode):
-    uid = StringProperty(default=lambda: get_uid_generator.generate_uid(), unique_index=True)
+
+class LCVTerm(DjangoNode):
+    uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+
+    class Meta:
+        app_label = 'uid'
 
 # Django LCVTerm Model for Admin
 class LCVTermDjangoModel(models.Model):
@@ -177,7 +194,7 @@ class LCVTermDjangoModel(models.Model):
 
 # LanguageSet now a Node
 class LanguageSet(StructuredNode):
-    uid = StringProperty(default=lambda: get_uid_generator.generate_uid(), unique_index=True)
+    uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
     terms = RelationshipTo(LCVTerm, 'HAS_TERM')
 
