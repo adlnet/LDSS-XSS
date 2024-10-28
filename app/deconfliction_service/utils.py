@@ -105,7 +105,7 @@ class ElasticsearchClient:
         }
         self.es.index(index=index_name, body=doc)
 
-    def check_similarity(self, definition_embedding, index_name='xss1_index', k=5, expected_dim=768, def_threshold_low=0.50, def_threshold_high=0.98):
+    def check_similarity(self, definition_embedding, index_name='xss_index', k=5, expected_dim=768, def_threshold_low=0.50, def_threshold_high=0.98):
         """
         Checks if a vector embedding is similar to any existing embeddings in the database.
         """
@@ -204,7 +204,7 @@ class ElasticsearchClient:
             logger.error(f"An unexpected error occurred: {e}")
             raise e
     
-    # def check_similarity(self, definition_embedding, index_name='xss1_index', k=5):
+    # def check_similarity(self, definition_embedding, index_name='xss_index', k=5):
     #     """
     #     Checks if a vector embedding is similar to any existing embeddings in the database.
     #     """

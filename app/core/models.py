@@ -485,7 +485,7 @@ class NeoContext(DjangoNode):
     context = StringProperty(unique_index = True)
     context_description = StringProperty()
     alias = RelationshipFrom('NeoAlias', 'USED_IN')
-    definition_node = RelationshipFrom('NeoDefinition', 'VALID_IN' )
+    definition = RelationshipFrom('NeoDefinition', 'VALID_IN' )
 
     class Meta:
         app_label = 'core'

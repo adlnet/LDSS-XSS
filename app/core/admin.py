@@ -158,6 +158,11 @@ class NeoTermAdmin(admin.ModelAdmin):
                 existing_term_uid = deconfliction_response['existingTerm']
                 existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
                 messages.error(request, 'Duplicate definition detected. Creating Alias if applicable.')
+                alias_node, created = NeoAlias.get_or_create(alias=term)
+                existing_term.alias.connect(alias_node)
+                alias_node.term.connect(existing_term)
+                messages.info(request, 'Alias created for term: {}'.format(existing_term))
+
             logger.info(deconfliction_response)
 
             logger.info(term)
@@ -169,6 +174,8 @@ class NeoTermAdmin(admin.ModelAdmin):
             definition_node = NeoDefinition(definition=definition)
             definition_node.save()
             context_node, created = NeoContext.get_or_create(context=context, context_description=context_description)
+            definition_node.context.connect(context_node)
+            context_node.definition.connect(definition_node)
 
 
             obj.save()
