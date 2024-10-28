@@ -5,6 +5,13 @@ from datetime import datetime
 import time  # Import time module to use sleep
 from neomodel import db  # Ensure you have access to the Neo4j database connection
 from django_neomodel import DjangoNode
+import logging
+from django.db import transaction  # Import transaction atomic
+import re
+
+logger = logging.getLogger(__name__)
+
+UID_PATTERN = r"^0x[0-9A-Fa-f]{8}$"
 
 # Function to check Neo4j connection
 def check_neo4j_connection():
@@ -73,7 +80,12 @@ def get_uid_generator():
         uid_generator = UIDGenerator()
     return uid_generator
 
-#  Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
+# UID Compliance check
+def is_uid_compliant(uid):
+    """Check if the UID complies with the specified pattern."""
+    return bool(re.match(UID_PATTERN, uid))
+
+# Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
 class UIDGenerator:
     def __init__(self):
         if not check_neo4j_connection():
@@ -83,11 +95,51 @@ class UIDGenerator:
         if self.counter_obj is None:
             self.counter_obj = UIDCounter.create_node()
 
+# Updated with checks for collision detection, compliance detection, sequential order and regeneration.
     def generate_uid(self):
-        uid_value = self.counter.increment()
-        return f"0x{self.counter_obj.counter:08x}"
+        while True:
+            uid_value = self.counter.increment()
+            logger.debug(f"Generated UID: {uid_value}")
+            new_uid = f"0x{self.counter_obj.counter:08x}"
+            #return f"0x{self.counter_obj.counter:08x}"
+        
+            # Collision check
+            if len(UIDNode.nodes.filter(uid=new_uid)) > 0:
+                logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
+                suffix = 1
+            
+            # Adjust the UID by incrementing the suffix until a unique UID is found
+            while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
+                new_uid = f"0x{self.counter.counter + suffix:08x}"
+                suffix += 1  # Increment suffix for the next attempt
+            logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
+        
+            # Compliance check
+            if not is_uid_compliant(new_uid):
+                logger.warning(f"Generated UID {new_uid} is not compliant with the expected pattern.")
+                continue
+            
+            # Sequential order check
+            if hasattr (self, 'last_uid'):
+                if self.last_uid is not None and int(new_uid, 16) <= int(self.last_uid, 16):
+                    logger.warning(f"UID {new_uid} is not sequential. Regenerating UID.")
+                    #continue
+                    break
+        
+            # Saving Last Generated UID
+            #with transaction.atomic():  # Ensure this operation is atomic
+             #   LastGeneratedUID.objects.update_or_create(defaults={'uid': new_uid}, id=1)
+            
+            # Update the last issued UID
+            self.last_uid = new_uid
+        
+            return new_uid
     
-
+# Start of Function to Retrieve Last Generated UID
+ #   def get_last_generated_uid():
+  #      last_uid_record = LastGeneratedUID.objects.first()
+  #      return last_uid_record.uid if last_uid_record else None
+    
 uid_singleton = UIDGenerator()
 
 # Neo4j UID Node
@@ -96,6 +148,7 @@ class UIDNode(DjangoNode):
     namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True)
     created_at = DateTimeProperty(default_now=True)
+    #echelon_level = StringProperty(required=True)  # Add this line to define echelon levels
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
@@ -142,6 +195,14 @@ class CounterNode(DjangoNode):
     
     class Meta: 
         app_label = 'uid'
+
+# Define LastGeneratedUID class
+#class LastGeneratedUID(models.Model):
+ #   uid = models.CharField(max_length=255, unique=True)
+#
+ #   class Meta:
+  #      verbose_name = "Last Generated UID"
+   #     verbose_name_plural = "Last Generated UIDs"
 
 # Provider and LCVTerms now Nodes
 class Provider(DjangoNode):
@@ -204,3 +265,13 @@ class LanguageSet(StructuredNode):
     def get_terms(self):
         return self.terms.all()
 
+#Adding reporting by echelon level
+def report_uids_by_echelon(echelon_level):
+    """Retrieve UIDs issued at a specific echelon level."""
+    nodes = UIDNode.nodes.filter(echelon_level=echelon_level)
+    return [node.uid for node in nodes]
+
+def report_all_uids():
+    """Retrieve all UIDs issued in the enterprise."""
+    nodes = UIDNode.nodes.all()
+    return [node.uid for node in nodes]

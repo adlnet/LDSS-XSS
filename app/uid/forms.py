@@ -1,5 +1,11 @@
 from django import forms
 from .models import Provider, LCVTerm  # Import Neo4j models directly
+#from .models import LastGeneratedUID
+
+#class LastGeneratedUIDForm(forms.ModelForm):
+ #   class Meta:
+  #      model = LastGeneratedUID
+   #     fields = ['uid']
 
 class ProviderForm(forms.ModelForm):
     uid = forms.CharField(max_length=255)

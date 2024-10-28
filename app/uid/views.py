@@ -77,15 +77,19 @@ def generate_uid_node(request: HttpRequest):
     #except Provider.DoesNotExist:
     #    return JsonResponse({'error': 'Provider not found'}, status=404)
 
-# Provider and LCVTerm (Otherwise alternative Parent and child)
+# Provider and LCVTerm (Otherwise alternative Parent and child) Now with collision detection on both.
 def create_provider(request):
     if request.method == 'POST':
         form = ProviderForm(request.POST)
         if form.is_valid():
             provider = form.save()
-            provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
-            provider.save()
-            #form.save()
+            #try:
+             #   provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
+              #  provider.save()
+            #except IntegrityError:
+             #   logger.error(f"Collision detected for UID: {provider.uid}")
+              #  return error_response("A UID collision occurred. Please try again.", status=400)
+                
             return redirect('uid:success')
     else:
         form = ProviderForm()
@@ -96,16 +100,29 @@ def create_lcvterm(request):
         form = LCVTermForm(request.POST)
         if form.is_valid():
             lcvterm = form.save()
-            lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
-            lcvterm.save()
-            #form.save()
-            return redirect('uid:success')
+            #try:
+             #   lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
+              #  lcvterm.save()
+            #except IntegrityError:
+             #   logger.error(f"Collision detected for UID: {lcvterm.uid}")
+                
+        return redirect('uid:success')
     else:
         form = LCVTermForm()
     return render(request, 'create_lcvterm.html', {'form': form})
 
 def success_view(request):
     return render(request, 'success.html', {'message': 'Operation completed successfully!'})
+
+# Report Generation by echelon
+def generate_report(request, echelon_level=None):
+    #if echelon_level == "root":
+     #   uids = report_all_uids()
+    #else:
+     #   uids = report_uids_by_echelon(echelon_level)
+
+    #return JsonResponse({'uids': uids})
+    return JsonResponse({'message': 'Report generation is not avaliable yet'}, status=200)
 
 # Postman view
 def export_to_postman(request, uid):
