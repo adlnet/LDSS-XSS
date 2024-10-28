@@ -82,7 +82,7 @@ def create_provider(request):
     if request.method == 'POST':
         form = ProviderForm(request.POST)
         if form.is_valid():
-            provider = form.save(commit=False)
+            provider = form.save()
             provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
             provider.save()
             #form.save()
