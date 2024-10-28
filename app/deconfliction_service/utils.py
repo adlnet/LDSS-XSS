@@ -144,7 +144,7 @@ class ElasticsearchClient:
             # Execute the search
             definition_response = self.es.search(index=index_name, body={"query": definition_query})
             definition_hits = definition_response['hits']['hits']
-        
+            logger.info(definition_hits)
             if definition_hits:
                 definition_hit = definition_hits[0]  # Most similar definition match
                 logger.info(f"Definition hit: {definition_hit}")
@@ -153,7 +153,7 @@ class ElasticsearchClient:
 
                 most_similar_def_uid = definition_hit['_source']['uid']
 
-
+                logger.info(f"Definition score: {def_score}")
                 # Check for each case using the helper functions
                 if is_duplication(def_score):
                     return {
@@ -168,13 +168,15 @@ class ElasticsearchClient:
                 else:
                     return {
                         "type": "unique",
-                        "existingTerm": None
+                        "existingTerm": None,
+                        "definition_embedding": definition_embedding
                     }
             else:
                 # If no valid hits were found, treat it as unique
                 return {
                     "type": "unique",
-                    "existingTerm": None
+                    "existingTerm": None,
+                    "definition_embedding": definition_embedding
                 }
             
         except ValueError as e:

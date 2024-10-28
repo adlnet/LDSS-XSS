@@ -11,6 +11,7 @@ from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContext
 from django import forms
 from uuid import uuid4
 import logging
+from deconfliction_service.utils import ElasticsearchClient
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -127,6 +128,13 @@ class NeoTermAdminForm(forms.ModelForm):
     context = forms.CharField(required=True, help_text="Enter context")  # Custom field
     context_description = forms.CharField(required=True, help_text="Enter context description")  # Custom field
 
+    # def validate_definition(self, definition):
+
+    #     if definition is None:
+    #         raise forms.ValidationError('Definition is required')
+        
+    #     check_definition_conflicts
+
     class Meta:
         model = NeoTerm
         fields = ['lcvid']
@@ -152,8 +160,14 @@ class NeoTermAdmin(admin.ModelAdmin):
             definition = form.cleaned_data['definition']
             context = form.cleaned_data['context']
             context_description = form.cleaned_data['context_description']
+            logger.info('Running Deconfliction')
 
             deconfliction_response = run_deconfliction(definition)
+
+            es_client = ElasticsearchClient()
+            es_client.connect()
+
+
             if deconfliction_response['type']=='duplicate':
                 existing_term_uid = deconfliction_response['existingTerm']
                 existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
@@ -162,6 +176,10 @@ class NeoTermAdmin(admin.ModelAdmin):
                 existing_term.alias.connect(alias_node)
                 alias_node.term.connect(existing_term)
                 messages.info(request, 'Alias created for term: {}'.format(existing_term))
+            if deconfliction_response['type']=='unique':
+
+                messages.info(request, 'No duplicates found. Saving term.')
+                index_document('xss_index',uid=obj.uid,definition_embedding=deconfliction_response["definition_embedding"])
 
             logger.info(deconfliction_response)
 
@@ -169,7 +187,6 @@ class NeoTermAdmin(admin.ModelAdmin):
             logger.info(definition)
             logger.info(context)
             logger.info(context_description)
-            
             alias_node, created = NeoAlias.get_or_create(alias=term)
             definition_node = NeoDefinition(definition=definition)
             definition_node.save()
