@@ -37,7 +37,7 @@ class ElasticsearchClient:
             self.es.transport.close()
             self.es = None
 
-    def ensure_index(self, index_name='xss1_index', vector_dim=768):
+    def ensure_index(self, index_name='xss_index', vector_dim=768):
         """
         Ensures that the Elasticsearch index is set up properly with the correct mappings.
         """
@@ -54,7 +54,6 @@ class ElasticsearchClient:
                             "definition": {
                                 "type": "text"
                             },
-                        
                             "definition_embedding": {
                                 "type": "dense_vector",
                                 "dims": vector_dim,
@@ -69,12 +68,16 @@ class ElasticsearchClient:
                 logger.info(f"Index {index_name} created successfully.")
         except exceptions.BadRequestError as e:
             logger.error(f"The request body mapping is invalid: {e}")
+            raise e 
         except exceptions.ConnectionError as e:
             logger.error(f"Connection error: {e}")
+            raise e
         except exceptions.ConflictError as e:
             logger.error(f"Index already exists: {e}")
+            raise e 
         except exceptions.TransportError as e:
             logger.error(f"Transport error: {e}")
+            raise e
             
 
     def create_embedding(self, definition):
@@ -90,19 +93,19 @@ class ElasticsearchClient:
 
         return definition_embedding
     
-    def index_document(self, index_name, definition_embedding, lcvid):
+    def index_document(self, index_name, definition_embedding, uid):
         """
         Indexes a document with its term, definition, uid, and embedding into Elasticsearch.
         """
         # logger.info(f'definition_embedding length: {len(definition_embedding)}')
         # logger.info(f'index_name: {index_name}')
         doc = {
-            'lcvid': lcvid,
+            'uid': uid,
             'definition_embedding': definition_embedding,
         }
         self.es.index(index=index_name, body=doc)
 
-    def check_similarity(self, definition_embedding, index_name='xss1_index', k=5, expected_dim=768, def_threshold_low=0.50, def_threshold_high=0.95):
+    def check_similarity(self, definition_embedding, index_name='xss1_index', k=5, expected_dim=768, def_threshold_low=0.50, def_threshold_high=0.98):
         """
         Checks if a vector embedding is similar to any existing embeddings in the database.
         """
@@ -111,7 +114,7 @@ class ElasticsearchClient:
             return def_score <= def_threshold_low #and most_similar_def_lcvid == lcvid
 
         def is_duplication(def_score):
-            return def_score > def_threshold_high #and comparison_lcvid == lcvid
+            return def_score >= def_threshold_high #and comparison_lcvid == lcvid
 
         def is_collision(def_score):
             return def_threshold_low < def_score <= def_threshold_high
@@ -134,7 +137,7 @@ class ElasticsearchClient:
                     "field": "definition_embedding",
                     "query_vector": definition_embedding,
                     "k": k,
-                    "num_candidates": 1000,
+                    "num_candidates": 10000,
                 }
             }
 
@@ -148,24 +151,19 @@ class ElasticsearchClient:
                 def_score = definition_hit['_score']
                 logger.info(f"Definition score: {def_score}")
 
-                most_similar_def_lcvid = definition_hit['_source']['lcvid']
+                most_similar_def_uid = definition_hit['_source']['uid']
 
 
                 # Check for each case using the helper functions
-                if is_deviation(def_score, most_similar_def_lcvid):
-                    return {
-                        "type": "deviation",
-                        "existingTerm": find_existing(definition_hits, most_similar_def_lcvid, "lcvid")
-                    }
-                elif is_duplication(def_score):
+                if is_duplication(def_score):
                     return {
                         "type": "duplication",
-                        "existingTerm": find_existing(definition_hits, most_similar_def_lcvid, "lcvid")
+                        "existingTerm": find_existing(definition_hits, most_similar_def_uid, "uid")
                     }
                 elif is_collision(def_score):
                     return {
                         "type": "collision",
-                        "existingTerm": find_existing(definition_hits, most_similar_def_lcvid, "lcvid")
+                        "existingTerm": find_existing(definition_hits, most_similar_def_uid, "uid")
                     }
                 else:
                     return {

@@ -147,11 +147,36 @@ class NeoTermAdmin(admin.ModelAdmin):
         try:
             if not obj.uid:
                 obj.uid = str(uuid4())
+
             term = form.cleaned_data['term']
             definition = form.cleaned_data['definition']
             context = form.cleaned_data['context']
             context_description = form.cleaned_data['context_description']
+
+            deconfliction_response = run_deconfliction(definition)
+            if deconfliction_response['type']=='duplicate':
+                existing_term_uid = deconfliction_response['existingTerm']
+                existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
+                messages.error(request, 'Duplicate definition detected. Creating Alias if applicable.')
+            logger.info(deconfliction_response)
+
+            logger.info(term)
+            logger.info(definition)
+            logger.info(context)
+            logger.info(context_description)
+            
+            alias_node, created = NeoAlias.get_or_create(alias=term)
+            definition_node = NeoDefinition(definition=definition)
+            definition_node.save()
+            context_node, created = NeoContext.get_or_create(context=context, context_description=context_description)
+
+
             obj.save()
+            obj.alias.connect(alias_node)
+            obj.definition.connect(definition_node)
+            obj.context.connect(context_node)
+
+            
         except Exception as e:
             logger.error('Error saving NeoTerm: {}'.format(e))
             messages.error(request, 'Error saving NeoTerm: {}'.format(e))

@@ -40,7 +40,9 @@ def run_deconfliction(definition):
         es.connect()
         es.ensure_index()
         definition_embedding  = es.create_embedding(definition)
+        
         response = es.check_similarity(definition_embedding)
+
         return response
     except Exception as e:
         logger.error(f"Error in run_deconfliction: {e}")

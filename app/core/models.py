@@ -15,7 +15,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
-from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty, exceptions
 from django_neomodel import DjangoNode
 
 logger = logging.getLogger('dict_config_logger')
@@ -446,28 +446,103 @@ class NeoTerm(DjangoNode):
         app_label = 'core'
 
 class NeoAlias(DjangoNode):
-    identifier = UniqueIdProperty()
+    django_id = UniqueIdProperty()
     alias = StringProperty(unique_index=True,required=True)
     term = RelationshipFrom('NeoTerm', 'ALIAS_OF')
     context = RelationshipTo('NeoContext', 'ALIAS_TO')
     class Meta:
         app_label = 'core'
+    
+    @classmethod
+    def get_or_create(cls, alias: str):
+        """Retrieve an existing NeoAlias or create a new one if not found, with error handling."""
+        try:
+            # Attempt to find an existing alias node
+            logger.info('attempting to query neo4j')
+            alias_node = cls.nodes.first_or_none(alias=alias)
+            
+            if alias_node:
+                logger.info(f"NeoAlias found with alias '{alias}'")
+                return alias_node, False
+
+            # If no existing node is found, create and save a new one
+            alias_node = NeoAlias(alias=alias)
+            alias_node.save()
+            logger.info(f"New NeoAlias created with alias '{alias}'")
+            return alias_node, True
+
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while getting or creating alias '{alias}': {e}")
+            raise e  # Re-raise the exception to be handled at a higher level
+
+        except Exception as e:
+            logger.error(f"Unexpected error in get_or_create for alias '{alias}': {e}")
+            raise e  # Re-raise unexpected errors for handling in save_model
 
 
 class NeoContext(DjangoNode):
     identifier = UniqueIdProperty()
-    context = StringProperty(unique = True)
-    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE')
-    alias = RelationshipFrom('NeoAlias', 'ALIAS_TO_CONTEXT')
+    context = StringProperty(unique_index = True)
+    context_description = StringProperty()
+    alias = RelationshipFrom('NeoAlias', 'USED_IN')
     definition_node = RelationshipFrom('NeoDefinition', 'VALID_IN' )
 
     class Meta:
         app_label = 'core'
+    
+    @classmethod
+    def get_or_create(cls, context: str, context_description: str): 
+
+        try:
+            context_node = cls.nodes.get_or_none(context=context)
+            if context_node:
+                logger.info(f"NeoContextDescription found with context '{context}'")
+                return context_node, False
+            
+            context_node = NeoContext(context=context.upper(), context_description=context_description)
+
+            context_node.save()
+
+            return context_node, True
+        
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while getting or creating context '{context}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error in get_or_create for context '{context}': {e}")
+            raise e
+        
+    
+
 
 class NeoContextDescription(DjangoNode):
     definition = RelationshipTo('NeoDefinition', 'BASED_ON')
     context = RelationshipTo('NeoContext', 'RATIONALE')
     context_description = StringProperty(required=True)
+
+    class Meta:
+        app_label = 'core'
+
+    @classmethod
+    def get_or_create(cls, context_description: str):
+        try:
+            context_description_node = cls.nodes.get_or_none(context_description=context_description)
+            if context_description_node:
+                logger.info(f"NeoContextDescription found with context_description '{context_description}'")
+                return context_description_node, False
+            
+            context_description_node = NeoContextDescription(context_description=context_description)
+
+            context_description_node.save()
+
+            return context_description_node, True
+        
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while getting or creating context_description '{context_description}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error in get_or_create for context_description '{context_description}': {e}")
+            raise e
 
 class NeoDefinition(DjangoNode):
     definition = StringProperty(required=True)
@@ -478,5 +553,4 @@ class NeoDefinition(DjangoNode):
     class Meta:
         app_label = 'core'
     
-    
-    
+
