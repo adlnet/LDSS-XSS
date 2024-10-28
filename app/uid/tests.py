@@ -1,7 +1,7 @@
 from django.test import TestCase
 from unittest.mock import patch, MagicMock
 from .models import CounterNode, Provider, LCVTerm, LanguageSet, UIDCounterDjangoModel, uid_generator # Import the UID generator from Models removed UIDCounter
-from .models import UIDGenerator, UIDNode
+from .models import  UIDCounter, UIDNode, UIDGenerator
 #from .utils import generate_uid, issue_uid, send_notification
 from .utils import send_notification
 from django.urls import reverse
@@ -45,19 +45,27 @@ class UIDGenerationTestCase(TestCase):
 
     def test_uid_generation_for_providers(self):
         provider = Provider(name="Test Provider")
-        provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
+        #provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
+        provider.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
         self.assertIsNotNone(provider.uid)
         self.assertTrue(provider.uid.startswith("0x"))
         self.assertEqual(len(provider.uid), 10)
 
     def test_uid_generation_for_lcv_terms(self):
         #lcv_term = LCVTerm.objects.create(term="Test LCV Term")
-        lcv_term = LCVTerm(term="Test LCV Term").save()
+        #lcv_term = LCVTerm(term="Test LCV Term").save()
+        #lcv_term.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
+        #self.assertIsNotNone(lcv_term.uid)
+        #self.assertTrue(lcv_term.uid.startswith("0x"))
+        #self.assertEqual(len(lcv_term.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
+        #self.assertNotIn(lcv_term.uid, [l.uid for l in LCVTerm.objects.all() if l.uid])
+        lcv_term = LCVTerm(term="Test LCV Term")
+        lcv_term.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
         self.assertIsNotNone(lcv_term.uid)
         self.assertTrue(lcv_term.uid.startswith("0x"))
-        self.assertEqual(len(lcv_term.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
-        self.assertNotIn(lcv_term.uid, [l.uid for l in LCVTerm.objects.all() if l.uid])
-
+        self.assertEqual(len(lcv_term.uid), 10)
+        self.assertNotIn(lcv_term.uid, [l.uid for l in LCVTerm.nodes.all() if l.uid])    
+        
     def test_uid_generation_for_language_sets(self): #Changes to reflect LanguageSet now DjangoNode
         with db.transaction:
             #language_set = LanguageSet.objects.create(name="Test Language Set")
