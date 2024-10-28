@@ -104,6 +104,9 @@ def create_lcvterm(request):
         form = LCVTermForm()
     return render(request, 'create_lcvterm.html', {'form': form})
 
+def success_view(request):
+    return render(request, 'success.html', {'message': 'Operation completed successfully!'})
+
 # Postman view
 def export_to_postman(request, uid):
     try:
