@@ -14,12 +14,10 @@ import mimetypes
 import os
 import sys
 from pathlib import Path
-from elasticsearch import Elasticsearch
 
 from neomodel import config
 config.DATABASE_URL = os.environ.get('NEO4J_BOLT_URL', 'bolt://neo4j:password@neo4j:7687')
 
-Elasticsearch.hosts = os.environ.get('ELASTICSEARCH_URL', 'elasticsearch:9200')
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
