@@ -6,296 +6,112 @@ import numpy as np
 logger = logging.getLogger('dict_config_logger')
 
 
-class ElasticsearchClient:
-    def __init__(self, host='elasticsearch', port=9200, model_name='all-mpnet-base-v2', scheme="http"):
-        self.host = host
-        self.port = port
-        self.es = None
-        self.scheme = scheme
-        self.model = SentenceTransformer(model_name)
-
-    def connect(self):
-        """
-        Connects to the Elasticsearch Docker container.
-        """
-        self.es = Elasticsearch([{'host': self.host, 'port': self.port, 'scheme': self.scheme}])
-        try:
-            if not self.es.ping():
-                raise ValueError("Connection failed")
-        except exceptions.ConnectionError as e:
-            print(f"Elasticsearch connection failed: {e}")
-            raise e
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            raise e
-    
-    def disconnect(self):
-        """
-        Closes the connection to Elasticsearch.
-        """
-        if self.es is not None:
-            self.es.transport.close()
-            self.es = None
-
-    def ensure_index(self, index_name='xss_index', vector_dim=768):
-        """
-        Ensures that the Elasticsearch index is set up properly with the correct mappings.
-        """
-        try:
-
-            if not self.es.indices.exists(index=index_name):
-                mapping = {
-                    "mappings": {
-                        "properties": {
-                            "uid": {
-                                "type": "keyword"
-                            },
-                        
-                            "definition": {
-                                "type": "text"
-                            },
-                            "definition_embedding": {
-                                "type": "dense_vector",
-                                "dims": vector_dim,
-                                "index": True,
-                                "similarity": "cosine"
-                            }
-                        }
-                    }
-                }
-
-                self.es.indices.create(index=index_name, body=mapping)
-                logger.info(f"Index {index_name} created successfully.")
-        except exceptions.BadRequestError as e:
-            logger.error(f"The request body mapping is invalid: {e}")
-            raise e 
-        except exceptions.ConnectionError as e:
-            logger.error(f"Connection error: {e}")
-            raise e
-        except exceptions.ConflictError as e:
-            logger.error(f"Index already exists: {e}")
-            raise e 
-        except exceptions.TransportError as e:
-            logger.error(f"Transport error: {e}")
-            raise e
-            
-
-    def create_embedding(self, definition):
-        """
-        Creates a vector embedding for the given text using SentenceTransformer.
-        """
-        definition_embedding = self.model.encode(definition)
-
-        norm = np.linalg.norm(definition_embedding)
-
-        if norm > 0:
-            definition_embedding = definition_embedding / norm
-
-        return definition_embedding
-    
-    def index_document(self, index_name, definition_embedding, uid):
-        """
-        Indexes a document with its term, definition, uid, and embedding into Elasticsearch.
-        """
-        # logger.info(f'definition_embedding length: {len(definition_embedding)}')
-        # logger.info(f'index_name: {index_name}')
-        doc = {
-            'uid': uid,
-            'definition_embedding': definition_embedding,
-        }
-        self.es.index(index=index_name, body=doc)
-
-    def check_similarity(self, definition_embedding, index_name='xss_index', k=5, expected_dim=768, def_threshold_low=0.50, def_threshold_high=0.98):
-        """
-        Checks if a vector embedding is similar to any existing embeddings in the database.
-        """
-
-        def is_deviation(def_score, most_similar_def_lcvid): #one term(lcvid) has multiple definitions
-            return def_score <= def_threshold_low #and most_similar_def_lcvid == lcvid
-
-        def is_duplication(def_score):
-            return def_score >= def_threshold_high #and comparison_lcvid == lcvid
-
-        def is_collision(def_score):
-            return def_threshold_low < def_score <= def_threshold_high
-                    #0.50 < 0.92 <= 0.95
-        def find_existing(hits, most_similar, field):
-            for hit in hits:
-                if hit['_source'][field] == most_similar:
-                    return hit['_source']
-            return None
-
-        try:
-            # Check that the query vector has the correct dimensions
-            if len(definition_embedding) != expected_dim:
-                raise ValueError(f"Query vector dimension mismatch: Expected {expected_dim}, got {len(definition_embedding)}")
 
 
-            # Prepare the k-NN query
-            definition_query = {
-                "knn": {
-                    "field": "definition_embedding",
-                    "query_vector": definition_embedding,
-                    "k": k,
-                    "num_candidates": 10000,
-                }
-            }
+def handle_unique_case(self, obj, alias, definition, context, context_description, deconfliction_response, es_client):
+    # Ensure the term has a unique identifier
+    if obj.uid is None:
+        obj.uid = str(uuid4())
 
-            # Execute the search
-            definition_response = self.es.search(index=index_name, body={"query": definition_query})
-            definition_hits = definition_response['hits']['hits']
-            logger.info(definition_hits)
-            if definition_hits:
-                definition_hit = definition_hits[0]  # Most similar definition match
-                logger.info(f"Definition hit: {definition_hit}")
-                def_score = definition_hit['_score']
-                logger.info(f"Definition score: {def_score}")
+    # Index the definition in Elasticsearch
+    es_client.index_document(
+        index_name='xss_index',
+        uid=obj.uid,
+        definition_embedding=deconfliction_response['definition_embedding']
+    )
 
-                most_similar_def_uid = definition_hit['_source']['uid']
+    # Create or retrieve nodes
+    alias_node = self.create_alias_node(alias)
+    definition_node = self.create_definition_node(definition)
+    context_node = self.create_context_node(context)
+    context_description_node = self.create_context_description_node(context_description)
+    obj.save()
 
-                logger.info(f"Definition score: {def_score}")
-                # Check for each case using the helper functions
-                if is_duplication(def_score):
-                    return {
-                        "type": "duplication",
-                        "existingTerm": find_existing(definition_hits, most_similar_def_uid, "uid")
-                    }
-                elif is_collision(def_score):
-                    return {
-                        "type": "collision",
-                        "existingTerm": find_existing(definition_hits, most_similar_def_uid, "uid")
-                    }
-                else:
-                    return {
-                        "type": "unique",
-                        "existingTerm": None,
-                        "definition_embedding": definition_embedding
-                    }
-            else:
-                # If no valid hits were found, treat it as unique
-                return {
-                    "type": "unique",
-                    "existingTerm": None,
-                    "definition_embedding": definition_embedding
-                }
-            
-        except ValueError as e:
-            # Handle dimension mismatch in query vector
-            logger.error(f"Dimension mismatch error: {e}")
-            raise e
+    # Connect the nodes
+    self.connect_nodes_unique_case(obj, alias_node, definition_node, context_node, context_description_node)
 
-        except exceptions.BadRequestError as e:
-            # Handle issues with the query structure or field names
-            logger.error(f"BadRequestError during search: {e}")
-            if "different number of dimensions" in str(e):
-                logger.error("Dimension mismatch between query vector and index vectors. Check vector dimensions.")
-            raise e
+def handle_duplication_case(self, request, alias, context, deconfliction_response):
+    existing_term = self.get_existing_term(deconfliction_response)
+    messages.error(request, 'Duplicate definition detected. Creating alias if applicable.')
 
-        except exceptions.ConnectionError as e:
-            # Handle connectivity issues with Elasticsearch
-            logger.error(f"ConnectionError: Could not connect to Elasticsearch - {e}")
-            raise e
+    alias_node, alias_created = NeoAlias.get_or_create(alias=alias)
+    context_node, context_created = NeoContext.get_or_create(context=context)
 
-        except exceptions.TransportError as e:
-            # General error for various transport issues
-            logger.error(f"TransportError during search: {e}")
-            raise e
+    # Connect the nodes
+    self.connect_nodes_duplication_case(existing_term, alias_node, context_node, alias_created, context_created)
 
-        except Exception as e:
-            # Catch-all for any other exceptions
-            logger.error(f"An unexpected error occurred: {e}")
-            raise e
-    
-    # def check_similarity(self, definition_embedding, index_name='xss_index', k=5):
-    #     """
-    #     Checks if a vector embedding is similar to any existing embeddings in the database.
-    #     """
-    #     definition_query = {
-    #         "knn": {
-    #             "field": "definition_embedding",
-    #             "query_vector": definition_embedding,
-    #             "k": k,
-    #             "num_candidates": 1000,
-    #         }
-    #     }
+    messages.info(request, 'Alias created for term: {}'.format(existing_term))
 
-    #     definition_response = self.es.search(index=index_name, body={"query": definition_query})
-    #     definition_hits = definition_response['hits']['hits']
+def handle_collision_case(self, request, obj):
+    messages.error(request, 'Collision detected. Logging the collision and not saving the term.')
+    logger.error('Collision detected for term: {}'.format(obj))
 
-    #     logger.info(f"Definition similarity search response: {definition_hits}")
+def create_alias_node(self, alias):
+    alias_node, _ = NeoAlias.get_or_create(alias=alias)
+    return alias_node
 
+def create_definition_node(self, definition):
+    definition_node = NeoDefinition(definition=definition)
+    definition_node.save()
+    return definition_node
 
-    #     if definition_hits:
-    #         definition_hit = definition_hits[0]  # Most similar definition match
-    #         def_score = definition_hit['_score']
-    #         most_similar_def = definition_hit['_source']['definition']
+def create_context_node(self, context):
+    context_node, _ = NeoContext.get_or_create(context=context)
+    return context_node
 
-    #     # Check for each case using separate functions
-    #         if self.is_deviation(def_score, def_threshold_low):
-    #             return {
-    #             "type": "deviation",
-    #             "existingTerm": self.find_existing(definition_hits, most_similar_def, "definition")
-    #         }
-    #         elif self.is_duplication(def_score, def_threshold_high):
-    #             return {
-    #             "type": "duplication",
-    #             "existingTerm": self.find_existing(definition_hits, most_similar_def, "definition")
-    #             }
-    #         elif self.is_collision(def_score, def_threshold_high):
-    #             return {
-    #             "type": "collision",
-    #             "existingTerm": self.find_existing(definition_hits, most_similar_def, "definition")
-    #             }
-    #         else:
-    #             return {
-    #             "type": "unique",
-    #             "existingTerm": None
-    #             }
-    #     else:
-    #         # If no valid hits were found, treat it as unique
-    #         return {
-    #             "type": "unique",
-    #             "existingTerm": None
-    #         }
+def create_context_description_node(self, context_description):
+    context_description_node, _ = NeoContextDescription.get_or_create(context_description=context_description)
+    return context_description_node
 
-    # Separate functions for checking each case
-    def is_deviation(self, def_score, def_threshold_low):
-        """
-        Checks if the case is a deviation (low similarity score for definition).
-        """
-        return def_score <= def_threshold_low
+def connect_nodes_unique_case(self, obj, alias_node, definition_node, context_node, context_description_node):
+    # Connect alias node
+    alias_node.term.connect(obj)
+    alias_node.context.connect(context_node)
 
-    def is_duplication(self, def_score, def_threshold_high):
-        """
-        Checks if the case is a duplication (high similarity score for definition).
-        """
-        return def_score > def_threshold_high
+    # Connect context node
+    context_node.context_description.connect(context_description_node)
+    context_node.definition.connect(definition_node)
+    context_node.term.connect(obj)
 
-    def is_collision(self, def_score, def_threshold_high):
-        """
-        Checks if the case is a collision (moderate similarity score for definition).
-        """
-        return def_threshold_low < def_score <= def_threshold_high
+    # Connect context description node
+    context_description_node.context.connect(context_node)
+    context_description_node.definition.connect(definition_node)
 
-    def find_existing(self, hits, most_similar, field):
-        """
-        Helper function to find the existing document in the database
-        based on the most similar definition.
-        """
-        for hit in hits:
-            if hit['_source'][field] == most_similar:
-                return hit['_source']
-        return None 
+    # Connect definition node
+    definition_node.context.connect(context_node)
+    definition_node.context_description.connect(context_description_node)
+    definition_node.term.connect(obj)
 
-    def search_by_uid(self, index_name, uid):
-        """
-        Retrieves a document from Elasticsearch by its UID.
-        """
-        query = {
-            "term": {
-                "uid": uid
-            }
-        }
-        response = self.es.search(index=index_name, body={"query": query})
-        return response['hits']['hits']
+    # Connect object relationships
+    obj.alias.connect(alias_node)
+    obj.definition.connect(definition_node)
+    obj.context.connect(context_node)
 
+def get_existing_term(self, deconfliction_response):
+    existing_term_data = deconfliction_response['existingTerm']
+    existing_term_uid = existing_term_data['uid']
+    existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
+    logger.info(f'Existing term retrieved: {existing_term}')
+    return existing_term
+
+def connect_nodes_duplication_case(self, existing_term, alias_node, context_node, alias_created, context_created):
+    if alias_created:
+        # Add new alias to existing term
+        existing_term.alias.connect(alias_node)
+        alias_node.term.connect(existing_term)
+        alias_node.context.connect(context_node)
+        context_node.alias.connect(alias_node)
+
+    if context_created:
+        # Add context to existing term
+        existing_term.context.connect(context_node)
+        context_node.term.connect(existing_term)
+        logger.info('New context node connected to existing term.')
+
+        # Connect definition and context description
+        definition_node = existing_term.definition.all()[0]
+        context_node.definition.connect(definition_node)
+
+        context_description_node = existing_term.context.all()[0].context_description.all()[0]
+        context_node.context_description.connect(context_description_node)
+        logger.info('Definition and context description connected to new context node.')

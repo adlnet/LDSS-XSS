@@ -439,8 +439,8 @@ class NeoTerm(DjangoNode):
     uid = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
     definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
-    context = RelationshipFrom('NeoContext', 'TERM_IN')
-    alias = RelationshipTo('NeoAlias', 'POINTS_TO')
+    context = RelationshipFrom('NeoContext', 'IS_A')
+    alias = RelationshipFrom('NeoAlias', 'POINTS_TO')
 
     class Meta:
         app_label = 'core'
@@ -448,8 +448,8 @@ class NeoTerm(DjangoNode):
 class NeoAlias(DjangoNode):
     django_id = UniqueIdProperty()
     alias = StringProperty(unique_index=True,required=True)
-    term = RelationshipFrom('NeoTerm', 'ALIAS_OF')
-    context = RelationshipTo('NeoContext', 'ALIAS_TO')
+    term = RelationshipTo('NeoTerm', 'POINTS_TO')
+    context = RelationshipTo('NeoContext', 'USED_IN')
     class Meta:
         app_label = 'core'
     
@@ -483,7 +483,8 @@ class NeoAlias(DjangoNode):
 class NeoContext(DjangoNode):
     identifier = UniqueIdProperty()
     context = StringProperty(unique_index = True)
-    context_description = StringProperty()
+    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE')
+    term = RelationshipTo('NeoTerm', 'IS_A')
     alias = RelationshipFrom('NeoAlias', 'USED_IN')
     definition = RelationshipFrom('NeoDefinition', 'VALID_IN' )
 
@@ -491,16 +492,15 @@ class NeoContext(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, context: str, context_description: str): 
+    def get_or_create(cls, context: str): 
 
         try:
-            context_node = cls.nodes.get_or_none(context=context)
+            context_node = cls.nodes.get_or_none(context=context.upper())
             if context_node:
-                logger.info(f"NeoContextDescription found with context '{context}'")
+                logger.info(f"NeoContext found with context '{context}'")
                 return context_node, False
-            
-            context_node = NeoContext(context=context.upper(), context_description=context_description)
 
+            context_node = NeoContext(context=context.upper())
             context_node.save()
 
             return context_node, True
@@ -547,10 +547,25 @@ class NeoContextDescription(DjangoNode):
 class NeoDefinition(DjangoNode):
     definition = StringProperty(required=True)
     context = RelationshipTo('NeoContext', 'VALID_IN')
-    context_description = RelationshipFrom('NeoContext', 'BASED_ON')
+    context_description = RelationshipFrom('NeoContextDescription', 'BASED_ON')
     term = RelationshipFrom('NeoTerm', 'POINTS_TO')
     
     class Meta:
         app_label = 'core'
+
+    @classmethod
+    def get_or_create(cls, definition:str):
+        try:
+            definition_node = cls.nodes.get_or_none(definition=definition)
+            if definition_node:
+                logger.info(f"NeoDefinition found with definition '{definition}'")
+                return definition_node, False
+            
+            definition_node = NeoDefinition(definition=definition)
+            definition_node.save()
+            
+            return definition_node, True
+        except Exception as e:
+            logger.error(f"Error in get_or_create for NeoDefinition '{definition}': {e}")
     
 
