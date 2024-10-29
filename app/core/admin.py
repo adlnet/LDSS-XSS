@@ -3,8 +3,8 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from django.http import HttpRequest
 
-from core.node_utils import get_terms_with_multiple_definitions, is_any_node_present, has_semantically_similar_value
-from deconfliction_service.views import run_deconfliction
+from deconfliction_service.node_utils import create_vector_index, find_similar_text_by_embedding, generate_embedding, get_terms_with_multiple_definitions, is_any_node_present
+
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
@@ -12,7 +12,6 @@ from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContext
 from django import forms
 from uuid import uuid4
 import logging
-from deconfliction_service.utils import ElasticsearchClient
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -141,10 +140,6 @@ class NeoTermAdminForm(forms.ModelForm):
         if is_any_node_present(NeoDefinition, definition=definition):
             raise forms.ValidationError(f"A definition of '{definition}' already exists.")
         
-        similar = has_semantically_similar_value(NeoDefinition, "Your input definition here", similarity_threshold=0.85)
-
-        if similar:
-            raise forms.ValidationError(f"A similar definition already exists.")
         return definition  # Return the cleaned value
 
 class NeoTermAdmin(admin.ModelAdmin):
@@ -170,34 +165,30 @@ class NeoTermAdmin(admin.ModelAdmin):
             context_description = form.cleaned_data['context_description']
             logger.info('Running Deconfliction')
 
-            deconfliction_response = run_deconfliction(definition)
 
-            es_client = ElasticsearchClient()
-            es_client.connect()
+            # if deconfliction_response['type']=='duplicate':
+            #     existing_term_uid = deconfliction_response['existingTerm']
+            #     existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
+            #     messages.error(request, 'Duplicate definition detected. Creating Alias if applicable.')
+            #     alias_node, created = NeoAlias.get_or_create(alias=term)
+            #     existing_term.alias.connect(alias_node)
+            #     alias_node.term.connect(existing_term)
+            #     messages.info(request, 'Alias created for term: {}'.format(existing_term))
+            # if deconfliction_response['type']=='unique':
 
+            #     messages.info(request, 'No duplicates found. Saving term.')
 
-            if deconfliction_response['type']=='duplicate':
-                existing_term_uid = deconfliction_response['existingTerm']
-                existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
-                messages.error(request, 'Duplicate definition detected. Creating Alias if applicable.')
-                alias_node, created = NeoAlias.get_or_create(alias=term)
-                existing_term.alias.connect(alias_node)
-                alias_node.term.connect(existing_term)
-                messages.info(request, 'Alias created for term: {}'.format(existing_term))
-            if deconfliction_response['type']=='unique':
-
-                messages.info(request, 'No duplicates found. Saving term.')
-                es_client.index_document('xss_index',uid=obj.uid,definition_embedding=deconfliction_response["definition_embedding"])
-
-            logger.info(deconfliction_response)
+            # logger.info(deconfliction_response)
 
             logger.info(term)
             logger.info(definition)
             logger.info(context)
             logger.info(context_description)
             alias_node, created = NeoAlias.get_or_create(alias=term)
-            definition_node = NeoDefinition(definition=definition)
+            definition_node = NeoDefinition(definition=definition, embedding=generate_embedding(definition))
             definition_node.save()
+            create_vector_index('definitions', 'NeoDefinition', 'embedding')
+            find_similar_text_by_embedding(definition_node.embedding, 'definition', 'definitions')
             context_node, created = NeoContext.get_or_create(context=context, context_description=context_description)
             definition_node.context.connect(context_node)
             context_node.definition.connect(definition_node)
