@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .views import export_to_postman
+from .views import generate_report
 
 app_name = 'uid'
 
@@ -10,4 +11,5 @@ urlpatterns = [
     path('create-lcvterm/', views.create_lcvterm, name='create_lcvterm'),
     path('success/', views.success_view, name='success'),
     path('export/<str:uid>/', export_to_postman, name='export_to_postman'),
+    path('report/<str:echelon_level>/', generate_report, name='generate_report'),
 ]

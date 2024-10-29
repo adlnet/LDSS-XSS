@@ -17,7 +17,7 @@ class ProviderForm(forms.ModelForm):
         return provider
     class Meta:
         model = Provider
-        fields = ['uid', 'name']
+        fields = ['uid', 'name', 'echelon_level']
 
 class LCVTermForm(forms.ModelForm):
     uid = forms.CharField(max_length=255)
@@ -29,4 +29,4 @@ class LCVTermForm(forms.ModelForm):
         return lcv_term
     class Meta:
         model = LCVTerm
-        fields = ['uid', 'term']
+        fields = ['uid', 'term', 'echelon_level']

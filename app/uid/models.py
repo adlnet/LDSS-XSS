@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 UID_PATTERN = r"^0x[0-9A-Fa-f]{8}$"
 
+COLLISION_THRESHOLD = 5  # Number of attempts before adjusting the base counter
+
 # Function to check Neo4j connection
 def check_neo4j_connection():
     for attempt in range(5):  # Retry a few times
@@ -98,6 +100,7 @@ class UIDGenerator:
 # Updated with checks for collision detection, compliance detection, sequential order and regeneration.
     def generate_uid(self):
         while True:
+            attempts = 0 # Initialize attempts here
             uid_value = self.counter.increment()
             logger.debug(f"Generated UID: {uid_value}")
             new_uid = f"0x{self.counter_obj.counter:08x}"
@@ -112,6 +115,15 @@ class UIDGenerator:
             while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
                 new_uid = f"0x{self.counter.counter + suffix:08x}"
                 suffix += 1  # Increment suffix for the next attempt
+                attempts +=1 # Count attempts
+            logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
+            
+            # If too many attempts, increment base counter
+            if attempts > COLLISION_THRESHOLD:  # Define your threshold
+                logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
+                self.counter.increment()  # Adjust base counter
+                attempts = 0  # Reset attempts
+                break  # Break out to start over with new base UID
             logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
         
             # Compliance check
@@ -148,7 +160,7 @@ class UIDNode(DjangoNode):
     namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True)
     created_at = DateTimeProperty(default_now=True)
-    #echelon_level = StringProperty(required=True)  # Add this line to define echelon levels
+    echelon_level = StringProperty(required=True)  # Add this line to define echelon levels
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
@@ -159,8 +171,14 @@ class UIDNode(DjangoNode):
         return cls.nodes.get_or_none(uid=uid, namespace=namespace)
     
     @classmethod
-    def create_node(cls, uid, namespace) -> 'UIDNode':
-        uid_node = cls(uid=uid, namespace=namespace)
+    def create_node(cls, uid, namespace, echelon_level) -> 'UIDNode':
+        # Find existing Node
+        existing_node = cls.get_node_by_uid(uid=None, namespace=namespace)  # Adjust the filter as needed
+        if existing_node:
+            logger.info(f"Node already exists for namespace: {namespace}. Reusing existing UID: {existing_node.uid}.")
+            return existing_node  # Return the existing node if found
+        
+        uid_node = cls(uid=uid, namespace=namespace, echelon_level=echelon_level)
         uid_node.save()
         return uid_node
     
@@ -168,33 +186,33 @@ class UIDNode(DjangoNode):
         app_label = 'uid'
 
 # Neo4j Counter Node
-class CounterNode(DjangoNode):
-    counter = IntegerProperty(default=0)
-    updated_at = DateTimeProperty(default=lambda: datetime.now())
+#class CounterNode(DjangoNode):
+ #   counter = IntegerProperty(default=0)
+  #  updated_at = DateTimeProperty(default=lambda: datetime.now())
 
-    @classmethod
-    def get(cls):
-        counter_node = cls.nodes.first_or_none()
-        if counter_node is None:
-            return cls.create_node()
-        return counter_node
+   # @classmethod
+    #def get(cls):
+     #   counter_node = cls.nodes.first_or_none()
+      #  if counter_node is None:
+       #     return cls.create_node()
+        #return counter_node
 
-    @classmethod
-    def create_node(cls):
-        counter = cls()
-        counter.save()
-        return counter
+  #  @classmethod
+   # def create_node(cls):
+    #    counter = cls()
+     #   counter.save()
+      #  return counter
     
-    @classmethod
-    def increment(cls):
-        counter = cls.get()
-        counter.counter += 1
-        counter.updated_at = datetime.now()
-        counter.save()
-        return counter
+    #@classmethod
+    #def increment(cls):
+     #   counter = cls.get()
+      #  counter.counter += 1
+       # counter.updated_at = datetime.now()
+        #counter.save()
+        #return counter
     
-    class Meta: 
-        app_label = 'uid'
+    #class Meta: 
+      #  app_label = 'uid'
 
 # Define LastGeneratedUID class
 #class LastGeneratedUID(models.Model):
@@ -208,6 +226,7 @@ class CounterNode(DjangoNode):
 class Provider(DjangoNode):
     uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
+    echelon_level = StringProperty(required=True)  # Required for echelon check
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
     class Meta:
@@ -233,6 +252,7 @@ class LCVTerm(DjangoNode):
     uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
+    echelon_level = StringProperty(required=True)  # Required for echelon check
     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
     class Meta:

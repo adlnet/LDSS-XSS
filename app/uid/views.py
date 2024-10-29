@@ -4,9 +4,10 @@ from django.http import HttpResponse, HttpRequest, JsonResponse
 import json
 import logging
 from neomodel import db
-from .models import CounterNode, Provider, LCVTerm, LanguageSet
-from .models import UIDGenerator, UIDNode
+#from .models import CounterNode, 
+from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
 from .forms import ProviderForm, LCVTermForm
+from .models import report_all_uids, report_uids_by_echelon
 #from .utils import generate_uid # import generate_uid 
 
 # Set up logging to capture errors and important information
@@ -32,7 +33,9 @@ def generate_uid_node(request: HttpRequest):
     strict_parent_validation = request_body.get('strict_parent_validation', False)
     parent_uid = request_body.get('parent_uid', None)
     namespace = request_body.get('namespace', 'LCV') #??? Ask Hunter about where namespace is actually configured and is it different than just organization?
-    parent_node = UIDNode.get_node_by_uid(parent_uid, namespace) #added namespace
+    echelon_level = request_body.get('echelon_level', 'level_1')  # Get echelon level from request
+    
+    parent_node = UIDNode.get_node_by_uid(parent_uid, namespace, echelon_level='parent_level') #added namespace and parent level
 
     if parent_node is None:
         if strict_parent_validation:
@@ -52,7 +55,7 @@ def generate_uid_node(request: HttpRequest):
     local_uid = uid_generator.generate_uid() # updated to use new UID Generation method
     #local_uid = CounterNode.increment().counter
 
-    new_child_node = UIDNode.create_node(uid = local_uid, namespace = namespace)
+    new_child_node = UIDNode.create_node(uid = local_uid, namespace = namespace, echelon_level=echelon_level)
 
     parent_node.children.connect(new_child_node)
 
@@ -83,13 +86,8 @@ def create_provider(request):
         form = ProviderForm(request.POST)
         if form.is_valid():
             provider = form.save()
-            #try:
-             #   provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
-              #  provider.save()
-            #except IntegrityError:
-             #   logger.error(f"Collision detected for UID: {provider.uid}")
-              #  return error_response("A UID collision occurred. Please try again.", status=400)
-                
+            provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
+            provider.save()
             return redirect('uid:success')
     else:
         form = ProviderForm()
@@ -100,13 +98,9 @@ def create_lcvterm(request):
         form = LCVTermForm(request.POST)
         if form.is_valid():
             lcvterm = form.save()
-            #try:
-             #   lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
-              #  lcvterm.save()
-            #except IntegrityError:
-             #   logger.error(f"Collision detected for UID: {lcvterm.uid}")
-                
-        return redirect('uid:success')
+            lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
+            lcvterm.save()
+            return redirect('uid:success')
     else:
         form = LCVTermForm()
     return render(request, 'create_lcvterm.html', {'form': form})
@@ -116,13 +110,14 @@ def success_view(request):
 
 # Report Generation by echelon
 def generate_report(request, echelon_level=None):
-    #if echelon_level == "root":
-     #   uids = report_all_uids()
-    #else:
-     #   uids = report_uids_by_echelon(echelon_level)
+    if echelon_level == "root": # Getting all root level UID for echelon report
+       uids = report_all_uids()
+    else:
+       # Retrieve UIDs based on the specified echelon level
+       uids = report_uids_by_echelon(echelon_level)
 
-    #return JsonResponse({'uids': uids})
-    return JsonResponse({'message': 'Report generation is not avaliable yet'}, status=200)
+    return JsonResponse({'uids': uids})
+    #return JsonResponse({'message': 'Report generation is not avaliable yet'}, status=200)
 
 # Postman view
 def export_to_postman(request, uid):
