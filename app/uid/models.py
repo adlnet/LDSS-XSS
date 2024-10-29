@@ -38,9 +38,13 @@ class UIDCounter(StructuredNode):
                 cls._cached_instance = cls.nodes.first_or_none()
                 if not cls._cached_instance:
                     cls._cached_instance = cls()
+                    #cls._cached_instance.counter = 0  # Explicitly set counter to zero
                     cls._cached_instance.save()
+                    logger.debug("Initialized new UIDCounter with default counter value: 0")
             except Exception as e:
                 print(f"Error accessing Neo4j: {e}")  # Handle logging or errors appropriately
+            else:
+                logger.debug(f"Retrieved existing UIDCounter with counter value: {cls._cached_instance.counter}")
         return cls._cached_instance
         
         #instance = cls.nodes.first_or_none()
@@ -51,10 +55,16 @@ class UIDCounter(StructuredNode):
 
     @classmethod
     def increment(cls):
-        instance = cls.get_instance()
-        instance.counter += 1
-        instance.save()
-        return instance.counter
+        with transaction.atomic():  # Ensure atomic operation
+            instance = cls.get_instance()
+            logger.debug(f"Current counter before increment: {instance.counter}")
+            current_value = instance.counter
+            logger.debug(f"Current counter before increment: {current_value}")
+            #instance.counter += 1
+            instance.counter = current_value + 1
+            logger.debug(f"Counter after increment: {instance.counter}")
+            instance.save()
+            return instance.counter
 
 # Django model for admin management
 class UIDCounterDjangoModel(models.Model):
@@ -67,8 +77,9 @@ class UIDCounterDjangoModel(models.Model):
     @classmethod
     def initialize(cls):
         """Ensure a counter exists in the Django model."""
-        cls.objects.get_or_create(id=1)  # Ensure a single instance
-
+        #cls.objects.get_or_create(id=1)  # Ensure a single instance
+        cls.objects.get_or_create(id=1, defaults={'counter_value': 0})
+        
 # Initialize the UID Generator
 #uid_generator = UIDGenerator()
 
@@ -99,27 +110,32 @@ class UIDGenerator:
 
 # Updated with checks for collision detection, compliance detection, sequential order and regeneration.
     def generate_uid(self):
+        uid_value = self.counter.increment()
+        attempts = 0 # Initialize attempts here change as needed
+        
         while True:
-            attempts = 0 # Initialize attempts here
-            uid_value = self.counter.increment()
-            logger.debug(f"Generated UID: {uid_value}")
-            new_uid = f"0x{self.counter_obj.counter:08x}"
+            new_uid = f"0x{uid_value:08x}"
+            #new_uid = f"0x{self.counter_obj.counter:08x}"
             #return f"0x{self.counter_obj.counter:08x}"
         
             # Collision check
-            if len(UIDNode.nodes.filter(uid=new_uid)) > 0:
-                logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
-                suffix = 1
-            
-            # Adjust the UID by incrementing the suffix until a unique UID is found
+            #if len(UIDNode.nodes.filter(uid=new_uid)) > 0:
             while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
-                new_uid = f"0x{self.counter.counter + suffix:08x}"
-                suffix += 1  # Increment suffix for the next attempt
-                attempts +=1 # Count attempts
-            logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
+                logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
+                #suffix = 1
+                attempts += 1
+
+                # Adjust the UID by incrementing the suffix until a unique UID is found
+                suffix = 1
+                new_uid = f"0x{uid_value + suffix:08x}"
+                while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
+                    #new_uid = f"0x{self.counter.counter + suffix:08x}"
+                    suffix += 1  # Increment suffix for the next attempt
+                    #attempts +=1 # Count attempts
+                logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
             
             # If too many attempts, increment base counter
-            if attempts > COLLISION_THRESHOLD:  # Define your threshold
+            if attempts >= COLLISION_THRESHOLD:  # Define your threshold
                 logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
                 self.counter.increment()  # Adjust base counter
                 attempts = 0  # Reset attempts
@@ -135,22 +151,19 @@ class UIDGenerator:
             if hasattr (self, 'last_uid'):
                 if self.last_uid is not None and int(new_uid, 16) <= int(self.last_uid, 16):
                     logger.warning(f"UID {new_uid} is not sequential. Regenerating UID.")
-                    #continue
-                    break
-        
-            # Saving Last Generated UID
-            #with transaction.atomic():  # Ensure this operation is atomic
-             #   LastGeneratedUID.objects.update_or_create(defaults={'uid': new_uid}, id=1)
+                    self.counter.increment()  # Force increment
+                    continue
+                    #break
             
             # Update the last issued UID
-            self.last_uid = new_uid
+            self.last_uid = new_uid # Save the last generated UID
         
             return new_uid
     
-# Start of Function to Retrieve Last Generated UID
- #   def get_last_generated_uid():
-  #      last_uid_record = LastGeneratedUID.objects.first()
-  #      return last_uid_record.uid if last_uid_record else None
+# Retrieve Last Generated UID
+    def get_last_generated_uid():
+        last_uid_record = LastGeneratedUID.objects.first()
+        return last_uid_record.uid if last_uid_record else None
     
 uid_singleton = UIDGenerator()
 
@@ -213,14 +226,6 @@ class UIDNode(DjangoNode):
     
     #class Meta: 
       #  app_label = 'uid'
-
-# Define LastGeneratedUID class
-#class LastGeneratedUID(models.Model):
- #   uid = models.CharField(max_length=255, unique=True)
-#
- #   class Meta:
-  #      verbose_name = "Last Generated UID"
-   #     verbose_name_plural = "Last Generated UIDs"
 
 # Provider and LCVTerms now Nodes
 class Provider(DjangoNode):
@@ -285,7 +290,7 @@ class LanguageSet(StructuredNode):
     def get_terms(self):
         return self.terms.all()
 
-#Adding reporting by echelon level
+# Adding reporting by echelon level
 def report_uids_by_echelon(echelon_level):
     """Retrieve UIDs issued at a specific echelon level."""
     nodes = UIDNode.nodes.filter(echelon_level=echelon_level)
@@ -295,3 +300,23 @@ def report_all_uids():
     """Retrieve all UIDs issued in the enterprise."""
     nodes = UIDNode.nodes.all()
     return [node.uid for node in nodes]
+
+# Adding Last Generated UID
+class LastGeneratedUID(models.Model):
+    uid = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        verbose_name = "Last Generated UID"
+        verbose_name_plural = "Last Generated UIDs"
+
+    #@classmethod
+    #def save_last_generated_uid(new_uid):
+      #  """Save the last generated UID to the database."""
+    #with transaction.atomic():  # Ensure atomic operation
+     #   LastGeneratedUID.objects.update_or_create(defaults={'uid': new_uid}, id=1)
+
+    @classmethod
+    def get_last_generated_uid():
+        """Retrieve the last generated UID from the database."""
+        last_uid_record = LastGeneratedUID.objects.first()
+        return last_uid_record.uid if last_uid_record else None

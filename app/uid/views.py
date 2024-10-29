@@ -43,12 +43,12 @@ def generate_uid_node(request: HttpRequest):
         else:
             parent_node = UIDNode.create_node(uid = parent_uid, namespace = namespace)
     
-    #num_children = parent_node.children.count()
+    num_children = parent_node.children.count()
 
     # Count children using a loop
     num_children = 0
     for child in parent_node.children:
-        num_children += 1
+       num_children += 1
 
     if num_children > MAX_CHILDREN:
         return HttpResponse("{ 'error': 'Max children exceeded for {parent_uid}' }", status=400, content_type='application/json')
@@ -126,7 +126,8 @@ def export_to_postman(request, uid):
         data = {
             'name': provider.name,
             'uid': provider.uid,
-            # Add other fields you want to export
+            'echelon level':provider.echelon_level,
+            # Add additional fields you want to export
         }
     except Provider.DoesNotExist:
         try:
@@ -134,7 +135,8 @@ def export_to_postman(request, uid):
             data = {
                 'name': lcv_term.name,
                 'uid': lcv_term.uid,
-                # Add other fields you want to export
+                'echelon level':lcv_term.echelon_level,
+                # Add additional fields you want to export
             }
         except LCVTerm.DoesNotExist:
             try:
