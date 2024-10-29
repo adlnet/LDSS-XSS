@@ -3,6 +3,7 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from django.http import HttpRequest
 
+from core.node_utils import get_terms_with_multiple_definitions, is_any_node_present, has_semantically_similar_value
 from deconfliction_service.views import run_deconfliction
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
@@ -128,16 +129,23 @@ class NeoTermAdminForm(forms.ModelForm):
     context = forms.CharField(required=True, help_text="Enter context")  # Custom field
     context_description = forms.CharField(required=True, help_text="Enter context description")  # Custom field
 
-    # def validate_definition(self, definition):
-
-    #     if definition is None:
-    #         raise forms.ValidationError('Definition is required')
-        
-    #     check_definition_conflicts
-
     class Meta:
         model = NeoTerm
-        fields = ['lcvid']
+        fields = ['lcvid', 'term', 'definition', 'context', 'context_description']
+
+    def clean_definition(self):
+        definition = self.cleaned_data.get('definition')
+
+        get_terms_with_multiple_definitions()
+        # Check if the definition already exists in the NeoDefinition model
+        if is_any_node_present(NeoDefinition, definition=definition):
+            raise forms.ValidationError(f"A definition of '{definition}' already exists.")
+        
+        similar = has_semantically_similar_value(NeoDefinition, "Your input definition here", similarity_threshold=0.85)
+
+        if similar:
+            raise forms.ValidationError(f"A similar definition already exists.")
+        return definition  # Return the cleaned value
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
@@ -179,7 +187,7 @@ class NeoTermAdmin(admin.ModelAdmin):
             if deconfliction_response['type']=='unique':
 
                 messages.info(request, 'No duplicates found. Saving term.')
-                index_document('xss_index',uid=obj.uid,definition_embedding=deconfliction_response["definition_embedding"])
+                es_client.index_document('xss_index',uid=obj.uid,definition_embedding=deconfliction_response["definition_embedding"])
 
             logger.info(deconfliction_response)
 
