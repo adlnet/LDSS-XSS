@@ -108,22 +108,28 @@ def find_similar_text_by_node_field(node_name, field_name, return_field_name, in
     logger.info(f"Similarity results successful. Most similar items: {results}")
     return results
 
-def evaluate_deconfliction_status(most_similar_text):
+def evaluate_deconfliction_status(similarity_results):
+
+    if not similarity_results:
+        return 'unique', None
+    
+    most_similar_text, highest_score = max(similarity_results, key=lambda x: x[1])
+
     logger.info(f"Most similar text: {most_similar_text}")
-    if not most_similar_text or 'score' not in most_similar_text:
-        return 'unique'
-    if is_duplicate(most_similar_text['score']):
-        return 'duplicate'
-    if is_collision(most_similar_text['score']):
-        return 'collision'
+    if is_unique(highest_score):
+        return 'unique', None
+    if is_duplicate(highest_score):
+        return 'duplicate', most_similar_text
+    if is_collision(highest_score):
+        return 'collision', most_similar_text
     else:
         return 'unique'
     
 def is_duplicate(similarity_score: float):
-    return similarity_score > 0.8
+    return similarity_score >= 0.9
 
 def is_collision(similarity_score: float):
-    return 0.8 > similarity_score > 0.4
+    return 0.9 > similarity_score > 0.4
  
 def is_unique(similarity_score: float):
     return similarity_score < 0.4

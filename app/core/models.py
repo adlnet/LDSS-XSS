@@ -15,7 +15,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
-from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty, exceptions, FloatProperty
+from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty, exceptions, FloatProperty, Relationship
 from django_neomodel import DjangoNode
 
 logger = logging.getLogger('dict_config_logger')
@@ -464,6 +464,7 @@ class NeoAlias(DjangoNode):
     alias = StringProperty(unique_index=True,required=True)
     term = RelationshipTo('NeoTerm', 'POINTS_TO')
     context = RelationshipTo('NeoContext', 'USED_IN')
+    collided_definition = Relationship('NeoDefinition', 'WAS_ADDED_WITH')
     class Meta:
         app_label = 'core'
     
@@ -501,7 +502,7 @@ class NeoAlias(DjangoNode):
 class NeoContext(DjangoNode):
     django_id = UniqueIdProperty()
     context = StringProperty(unique_index = True)
-    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE', cardinality='One')
+    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE')
     term = RelationshipTo('NeoTerm', 'IS_A')
     alias = RelationshipFrom('NeoAlias', 'USED_IN')
     definition = RelationshipFrom('NeoDefinition', 'VALID_IN' )
@@ -510,22 +511,24 @@ class NeoContext(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, context_value: str): 
+    def get_or_create(cls, context: str): 
         try:
-            context_node = cls.nodes.get_or_none(context=context_value.upper())
+            
+            context_node = cls.nodes.get_or_none(context=context)
+            
             if context_node:
-                logger.info(f"NeoContext found with context '{context_value}'")
                 return context_node, False
-
-            context_node = NeoContext(context=context_value.upper())
+            
+            context_node = NeoContext(context=context)
             context_node.save()
             return context_node, True
         
         except exceptions.NeomodelException as e:
-            logger.error(f"NeoModel-related error while getting or creating context '{context_value}': {e}")
+            logger.error(f"NeoModel-related error while getting or creating context '{context}': {e}")
             raise e
         except Exception as e:
-            logger.error(f"Unexpected error in get_or_create for context '{context_value}': {e}")
+            logger.error(e)
+            logger.error(f"Unexpected error in get_or_create for context '{context}': {e}")
             raise e
              
     def set_relationships(self, term_node, alias_node, definition_node, context_description_node):
@@ -533,7 +536,6 @@ class NeoContext(DjangoNode):
             self.term.connect(term_node)
             self.alias.connect(alias_node)
             self.definition.connect(definition_node)
-            logger.info(f'{context_description_node}')
             self.context_description.connect(context_description_node)
         except exceptions.NeomodelException as e:
             logger.error(f"NeoModel-related error while connecting relationships for context '{self.context}': {e}")
@@ -546,7 +548,7 @@ class NeoContext(DjangoNode):
 class NeoContextDescription(DjangoNode):
     context_description = StringProperty(required=True)
     definition = RelationshipTo('NeoDefinition', 'BASED_ON')
-    context = RelationshipTo('NeoContext', 'RATIONALE', cardinality='One')
+    context = RelationshipTo('NeoContext', 'RATIONALE')
 
     class Meta:
         app_label = 'core'
@@ -587,6 +589,8 @@ class NeoDefinition(DjangoNode):
     context = RelationshipTo('NeoContext', 'VALID_IN')
     context_description = RelationshipFrom('NeoContextDescription', 'BASED_ON')
     term = RelationshipFrom('NeoTerm', 'POINTS_TO')
+    collision = Relationship('NeoDefinition', 'IS_COLLIDING_WITH')
+    collision_alias = Relationship('NeoAlias', 'WAS_ADDED_WITH')
     
     class Meta:
         app_label = 'core'
