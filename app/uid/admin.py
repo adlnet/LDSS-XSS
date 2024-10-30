@@ -32,11 +32,7 @@ class CCVUpstreamAdmin(admin.ModelAdmin):
 @admin.register(CCVDownstream)
 class CCVDownstreamAdmin(admin.ModelAdmin):
     list_display = ('ccv_api_endpoint', 'ccv_api_endpoint_status')
-    fields = [('ccv_api_endpoint', 'ccv_api_key', 'ccv_api_endpoint_status'),
-              ('filter_records', 'filter_metadata'),
-              ('source_name',)]
-    filter_horizontal = ['composite_experiences',
-                         'filter_records', 'filter_metadata']
+    fields = [('ccv_api_endpoint', 'ccv_api_key', 'ccv_api_endpoint_status')]
 
 
 admin.site.register(ProviderDjangoModel, ProviderAdmin)
