@@ -38,7 +38,6 @@ class UIDCounter(StructuredNode):
                 cls._cached_instance = cls.nodes.first_or_none()
                 if not cls._cached_instance:
                     cls._cached_instance = cls()
-                    #cls._cached_instance.counter = 0  # Explicitly set counter to zero
                     cls._cached_instance.save()
                     logger.debug("Initialized new UIDCounter with default counter value: 0")
             except Exception as e:
@@ -47,12 +46,6 @@ class UIDCounter(StructuredNode):
                 logger.debug(f"Retrieved existing UIDCounter with counter value: {cls._cached_instance.counter}")
         return cls._cached_instance
         
-        #instance = cls.nodes.first_or_none()
-        #if not instance:
-         #   instance = cls()
-         #   instance.save()
-       # return instance
-
     @classmethod
     def increment(cls):
         with transaction.atomic():  # Ensure atomic operation
@@ -107,6 +100,7 @@ class UIDGenerator:
         self.counter_obj = UIDCounter.nodes.get_or_none()
         if self.counter_obj is None:
             self.counter_obj = UIDCounter.create_node()
+        self.last_uid = None
 
 # Updated with checks for collision detection, compliance detection, sequential order and regeneration.
     def generate_uid(self):
@@ -135,7 +129,7 @@ class UIDGenerator:
                 logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
             
             # If too many attempts, increment base counter
-            if attempts >= COLLISION_THRESHOLD:  # Define your threshold
+            if attempts >= COLLISION_THRESHOLD:  # Define Collision threshold
                 logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
                 self.counter.increment()  # Adjust base counter
                 attempts = 0  # Reset attempts
@@ -153,11 +147,12 @@ class UIDGenerator:
                     logger.warning(f"UID {new_uid} is not sequential. Regenerating UID.")
                     self.counter.increment()  # Force increment
                     continue
-                    #break
             
             # Update the last issued UID
             self.last_uid = new_uid # Save the last generated UID
-        
+            new_uid = f"0x{uid_value:08x}"
+            LastGeneratedUID.save_last_generated_uid(new_uid)
+
             return new_uid
     
 # Retrieve Last Generated UID
@@ -309,14 +304,34 @@ class LastGeneratedUID(models.Model):
         verbose_name = "Last Generated UID"
         verbose_name_plural = "Last Generated UIDs"
 
-    #@classmethod
-    #def save_last_generated_uid(new_uid):
-      #  """Save the last generated UID to the database."""
-    #with transaction.atomic():  # Ensure atomic operation
-     #   LastGeneratedUID.objects.update_or_create(defaults={'uid': new_uid}, id=1)
+    @classmethod
+    def save_last_generated_uid(cls, new_uid):
+        """Save the last generated UID to the database."""
+        with transaction.atomic():  # Ensure atomic operation
+        #LastGeneratedUID.objects.update_or_create(defaults={'uid': new_uid}, id=1)
+            cls.objects.update_or_create(defaults={'uid': new_uid}, id=1)
 
     @classmethod
     def get_last_generated_uid():
         """Retrieve the last generated UID from the database."""
         last_uid_record = LastGeneratedUID.objects.first()
         return last_uid_record.uid if last_uid_record else None
+    
+class LastGeneratedUID(StructuredNode):
+    uid = StringProperty(default=None)
+
+    @classmethod
+    def get_last_generated_uid(cls):
+        """Retrieve the last generated UID from Neo4j."""
+        last_uid_record = cls.nodes.first_or_none()
+        return last_uid_record.uid if last_uid_record else None
+
+    @classmethod
+    def save_last_generated_uid(cls, new_uid):
+        """Save the last generated UID to Neo4j."""
+        last_uid_record = cls.nodes.first_or_none()
+        if last_uid_record:
+            last_uid_record.uid = new_uid
+            last_uid_record.save()
+        else:
+            cls(uid=new_uid).save()

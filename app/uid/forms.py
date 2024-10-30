@@ -17,7 +17,8 @@ class ProviderForm(forms.ModelForm):
         return provider
     class Meta:
         model = Provider
-        fields = ['uid', 'name', 'echelon_level']
+        #fields = ['uid', 'name', 'echelon_level']
+        fields = ['name', 'echelon_level'] # UID is self generated
 
 class LCVTermForm(forms.ModelForm):
     uid = forms.CharField(max_length=255)
@@ -29,4 +30,5 @@ class LCVTermForm(forms.ModelForm):
         return lcv_term
     class Meta:
         model = LCVTerm
-        fields = ['uid', 'term', 'echelon_level']
+        #fields = ['uid', 'term', 'echelon_level']
+        fields = ['term', 'echelon_level'] # UID is self Generated
