@@ -57,25 +57,31 @@ def generate_uid_node(request: HttpRequest):
     parent_node.children.connect(new_child_node)
 
     return HttpResponse("{ 'uid': '" + str(local_uid) + "' }", content_type='application/json')
+#lcv and ccv or teo different databases. We need it to get parent string from ccv when it asks what do I assign, then the uid becomes that string 
+#plus local uid counter.  We need same thing to compare terms and tell us there is a conflict
+#we need to be able to show they mean the same thing even though they are different terms in different LCVs, a pointer to LCV or CCV or vice versa
 
+# need to track who gave you the term, so traceable who makes it. 
 #Potential code to retrieve parent and child nodes using the upstream and downstream capabilities
-#def get_upstream_providers(request, uid):
-    #try:
-      #  lcv_term = LCVTerm.nodes.get(uid=uid)
-     #   upstream_providers = lcv_term.get_upstream()
-    #    upstream_uids = [p.uid for p in upstream_providers]
-   #     return JsonResponse({'upstream_uids': upstream_uids})
-  #  except LCVTerm.DoesNotExist:
- #       return JsonResponse({'error': 'LCVTerm not found'}, status=404)
+#LCV to CCV 
+def get_upstream_providers(request, uid):
+    try:
+        lcv_term = LCVTerm.nodes.get(uid=uid)
+        upstream_providers = lcv_term.get_upstream()
+        upstream_uids = [p.uid for p in upstream_providers]
+        return JsonResponse({'upstream_uids': upstream_uids})
+    except LCVTerm.DoesNotExist:
+        return JsonResponse({'error': 'LCVTerm not found'}, status=404)
 
-#def get_downstream_lcv_terms(request, uid):
-    #try:
-        #provider = Provider.nodes.get(uid=uid)
-       # downstream_lcv_terms = provider.get_downstream()
-      #  downstream_uids = [l.uid for l in downstream_lcv_terms]
-     #   return JsonResponse({'downstream_uids': downstream_uids})
-    #except Provider.DoesNotExist:
-    #    return JsonResponse({'error': 'Provider not found'}, status=404)
+#lcv peer to peer communication
+def get_downstream_lcv_terms(request, uid):
+    try:
+        provider = Provider.nodes.get(uid=uid)
+        downstream_lcv_terms = provider.get_downstream()
+        downstream_uids = [l.uid for l in downstream_lcv_terms]
+        return JsonResponse({'downstream_uids': downstream_uids})
+    except Provider.DoesNotExist:
+        return JsonResponse({'error': 'Provider not found'}, status=404)
 
 # Provider and LCVTerm (Otherwise alternative Parent and child)
 def create_provider(request):

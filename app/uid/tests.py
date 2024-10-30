@@ -116,21 +116,21 @@ class UIDGenerationTestCase(TestCase):
             self.assertIn(lcv_term, language_set.get_terms())
 
 # Potnetial code for upstream/downstream testing for Providers/LCVterms
-    #def test_upstream_providers(self):
-     #   with db.transaction:
-      #      provider = Provider(name="Test Provider").save()
-       #     lcv_term = LCVTerm(term="Test LCV Term").save()
-        #    provider.lcv_terms.connect(lcv_term)
-         #   upstream_providers = lcv_term.get_upstream()
-          #  self.assertIn(provider, upstream_providers)
+    def test_upstream_providers(self):
+        with db.transaction:
+            provider = Provider(name="Test Provider").save()
+            lcv_term = LCVTerm(term="Test LCV Term").save()
+            provider.lcv_terms.connect(lcv_term)
+            upstream_providers = lcv_term.get_upstream()
+            self.assertIn(provider, upstream_providers)
 
-    #def test_downstream_lcv_terms(self):
-     #   with db.transaction:
-      #      provider = Provider(name="Test Provider").save()
-       #     lcv_term = LCVTerm(term="Test LCV Term").save()
-        #    provider.lcv_terms.connect(lcv_term)
-         #   downstream_lcv_terms = provider.get_downstream()
-          #  self.assertIn(lcv_term, downstream_lcv_terms)
+    def test_downstream_lcv_terms(self):
+        with db.transaction:
+            provider = Provider(name="Test Provider").save()
+            lcv_term = LCVTerm(term="Test LCV Term").save()
+            provider.lcv_terms.connect(lcv_term)
+            downstream_lcv_terms = provider.get_downstream()
+            self.assertIn(lcv_term, downstream_lcv_terms)
 
 class ExportToPostmanTestCase(APITestCase):
 
