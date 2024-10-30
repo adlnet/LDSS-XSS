@@ -67,7 +67,15 @@ def run_duplicate_definition_creation(alias, definition, context, context_descri
 
         definition_node = NeoDefinition.nodes.get(definition=definition)
         term_node = definition_node.term.single()
-
+        if not term_node:
+            context_node.alias.connect(alias_node)
+            context_node.context_description.connect(context_description_node)
+            context_node.definition.connect(definition_node)
+            alias_node.context.connect(context_node)
+            alias_node.collided_definition.connect(definition_node)
+            definition_node.context.connect(context_node)
+            definition_node.context_description.connect(context_description_node)
+            return alias_created, context_created, context_description_created
         context_node.set_relationships(term_node, alias_node, definition_node, context_description_node)
         term_node.set_relationships(alias_node, definition_node, context_node)
         alias_node.set_relationships(term_node, context_node)
