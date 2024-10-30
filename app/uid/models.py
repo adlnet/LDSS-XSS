@@ -25,6 +25,15 @@ def check_neo4j_connection():
             time.sleep(1)  # Wait before retrying
     return False
 
+class GeneratedUIDLog(models.Model):
+    uid = models.CharField(max_length=255, unique=True)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    generator_id = models.CharField(max_length=255)  # Track the generator instance
+
+    class Meta:
+        verbose_name = "Generated UID Log"
+        verbose_name_plural = "Generated UID Logs"
+
 # Creating the UIDCounter as Neo4j Node
 class UIDCounter(StructuredNode):
     counter = IntegerProperty(default=0)
@@ -94,6 +103,7 @@ def is_uid_compliant(uid):
 # Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
 class UIDGenerator:
     def __init__(self):
+        #self.generator_id = generator_id  # Unique ID for this generator instance
         if not check_neo4j_connection():
             raise RuntimeError("Neo4j service is not available.")
         self.counter = UIDCounter.get_instance()
@@ -105,6 +115,7 @@ class UIDGenerator:
 # Updated with checks for collision detection, compliance detection, sequential order and regeneration.
     def generate_uid(self):
         uid_value = self.counter.increment()
+        self.generator_id = uid_value.generator_id  # Unique ID for this generator instance
         attempts = 0 # Initialize attempts here change as needed
         
         while True:
@@ -152,6 +163,9 @@ class UIDGenerator:
             self.last_uid = new_uid # Save the last generated UID
             new_uid = f"0x{uid_value:08x}"
             LastGeneratedUID.save_last_generated_uid(new_uid)
+
+            # Log the generated UID
+            GeneratedUIDLog.objects.update_or_create(uid=new_uid, defaults={'generator_id': self.generator_id})
 
             return new_uid
     
@@ -291,6 +305,9 @@ def report_uids_by_echelon(echelon_level):
     nodes = UIDNode.nodes.filter(echelon_level=echelon_level)
     return [node.uid for node in nodes]
 
+def get_uid_generator(generator_id: str):
+    return UIDGenerator(generator_id=generator_id)
+
 def report_all_uids():
     """Retrieve all UIDs issued in the enterprise."""
     nodes = UIDNode.nodes.all()
@@ -335,3 +352,11 @@ class LastGeneratedUID(StructuredNode):
             last_uid_record.save()
         else:
             cls(uid=new_uid).save()
+
+
+
+# Reporting fucntion for all generated UIDs
+def report_all_generated_uids():
+    """Retrieve all generated UIDs from the log."""
+    logs = GeneratedUIDLog.objects.all()
+    return [(log.uid, log.generated_at, log.generator_id) for log in logs]
