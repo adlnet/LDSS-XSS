@@ -11,6 +11,9 @@ logger = logging.getLogger('dict_config_logger')
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+#model = SentenceTransformer('all-mpnet-base-v2')
+
+
 def is_any_node_present(node_class: Type[DjangoNode], **filters: Any) -> bool:
     """
     Check if any instance of node_class exists with the given filters.
@@ -51,32 +54,38 @@ def get_terms_with_multiple_definitions():
     # return terms
 
 def show_current_vector_indeces():
-    cypher_query = """
-    SHOW INDEXES WHERE type = "VECTOR"
-    """
+    try:
+        cypher_query = """
+        SHOW INDEXES WHERE type = "VECTOR"
+        """
 
-    logger.info(f"Current vector indeces: {db.cypher_query(cypher_query)}")
+        logger.info(f"Current vector indeces: {db.cypher_query(cypher_query)}")
+    except Exception as e:
+        logger.error(f'Error showing vector indeces: {e}')
+        raise e
 
 def create_vector_index(index_name, node_name, embedding_field_name='embedding'):
-    cypher_query = f"""
-    CREATE VECTOR INDEX `{index_name}` IF NOT EXISTS
-    FOR (n:{node_name})
-    ON (n.{embedding_field_name})
-    OPTIONS {{
-        indexConfig: {{
-            `vector.dimensions`: {MODEL_VECTOR_DIMENSION},
-            `vector.similarity_function`: 'cosine'
+    try:
+        cypher_query = f"""
+        CREATE VECTOR INDEX `{index_name}` IF NOT EXISTS
+        FOR (n:{node_name})
+        ON (n.{embedding_field_name})
+        OPTIONS {{
+            indexConfig: {{
+                `vector.dimensions`: {MODEL_VECTOR_DIMENSION},
+                `vector.similarity_function`: 'cosine'
+            }}
         }}
-    }}
-    """
+        """
 
-    logger.info("Cypher query: " + cypher_query)
+        results, _ = db.cypher_query(cypher_query)
+        show_current_vector_indeces()
+    except Exception as e:
+        logger.error(f'Error creating vector index: {e}')
+        raise e
 
-    results, _ = db.cypher_query(cypher_query)
-    show_current_vector_indeces()
-    return results
+def find_similar_text_by_embedding(input_embedding, return_field_name, index_name, top_k_results=10):
 
-def find_similar_text_by_embedding(input_embedding, return_field_name, index_name, top_k_results=6):
     cypher_query = f"""
         CALL db.index.vector.queryNodes('{index_name}', {top_k_results}, {input_embedding})
         YIELD node, score
@@ -98,3 +107,23 @@ def find_similar_text_by_node_field(node_name, field_name, return_field_name, in
     results, _ = db.cypher_query(cypher_query)
     logger.info(f"Similarity results successful. Most similar items: {results}")
     return results
+
+def evaluate_deconfliction_status(most_similar_text):
+    logger.info(f"Most similar text: {most_similar_text}")
+    if not most_similar_text or 'score' not in most_similar_text:
+        return 'unique'
+    if is_duplicate(most_similar_text['score']):
+        return 'duplicate'
+    if is_collision(most_similar_text['score']):
+        return 'collision'
+    else:
+        return 'unique'
+    
+def is_duplicate(similarity_score: float):
+    return similarity_score > 0.8
+
+def is_collision(similarity_score: float):
+    return 0.8 > similarity_score > 0.4
+ 
+def is_unique(similarity_score: float):
+    return similarity_score < 0.4

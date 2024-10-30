@@ -3,12 +3,12 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from django.http import HttpRequest
 
-from deconfliction_service.node_utils import create_vector_index, find_similar_text_by_embedding, generate_embedding, get_terms_with_multiple_definitions, is_any_node_present
-
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
 from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContextDescription
+from core.utils import run_node_creation
+from deconfliction_service.views import run_deconfliction
 from django import forms
 from uuid import uuid4
 import logging
@@ -123,24 +123,24 @@ class TermAdmin(admin.ModelAdmin):
         return form
 
 class NeoTermAdminForm(forms.ModelForm):
-    term = forms.CharField(required=True, help_text="Enter term")  # Custom field
+    alias = forms.CharField(required=True, help_text="Enter alias")  # Custom field
     definition = forms.CharField(required=True, help_text="Enter definition")  # Custom field
     context = forms.CharField(required=True, help_text="Enter context")  # Custom field
     context_description = forms.CharField(required=True, help_text="Enter context description")  # Custom field
 
     class Meta:
         model = NeoTerm
-        fields = ['lcvid', 'term', 'definition', 'context', 'context_description']
+        fields = ['lcvid', 'alias', 'definition', 'context', 'context_description']
 
-    def clean_definition(self):
-        definition = self.cleaned_data.get('definition')
+    # def clean_definition(self):
+    #     definition = self.cleaned_data.get('definition')
 
-        get_terms_with_multiple_definitions()
-        # Check if the definition already exists in the NeoDefinition model
-        if is_any_node_present(NeoDefinition, definition=definition):
-            raise forms.ValidationError(f"A definition of '{definition}' already exists.")
+    #     get_terms_with_multiple_definitions()
+    #     # Check if the definition already exists in the NeoDefinition model
+    #     if is_any_node_present(NeoDefinition, definition=definition):
+    #         raise forms.ValidationError(f"A definition of '{definition}' already exists.")
         
-        return definition  # Return the cleaned value
+    #     return definition  # Return the cleaned value
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
@@ -156,48 +156,63 @@ class NeoTermAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         try:
-            if not obj.uid:
-                obj.uid = str(uuid4())
-
-            term = form.cleaned_data['term']
+            alias = form.cleaned_data['alias']
             definition = form.cleaned_data['definition']
             context = form.cleaned_data['context']
             context_description = form.cleaned_data['context_description']
-            logger.info('Running Deconfliction')
+
+            run_node_creation(alias, definition, context, context_description)
+
+            # logger.info('Running Deconfliction')
+            # definition_vector_embedding, deconfliction_status = run_deconfliction(alias, definition, context, context_description)
+            # logger.info('Deconfliction complete')
+            # logger.info(f'Deconfliction result: {deconfliction_status}')
+            
+            # if deconfliction_status == 'unique':
+            #     termId = uuid4()
+            #     obj.uid = ter
+            #     alias_node,created = NeoAlias.get_or_create(alias=alias)
+            #     definition_node = NeoDefinition(definition=definition, embedding=definition_vector_embedding)
+            #     definition_node.save()
+            #     context_node, created = NeoContext.get_or_create(context=context, context_description=context_description)
+            #     context_description_node = NeoContextDescription.get_or_create(context_description=context_description)
 
 
-            # if deconfliction_response['type']=='duplicate':
-            #     existing_term_uid = deconfliction_response['existingTerm']
-            #     existing_term = NeoTerm.nodes.get(uid=existing_term_uid)
-            #     messages.error(request, 'Duplicate definition detected. Creating Alias if applicable.')
-            #     alias_node, created = NeoAlias.get_or_create(alias=term)
-            #     existing_term.alias.connect(alias_node)
-            #     alias_node.term.connect(existing_term)
-            #     messages.info(request, 'Alias created for term: {}'.format(existing_term))
-            # if deconfliction_response['type']=='unique':
+            # alias_node, created = NeoAlias.get_or_create(alias=alias)
+            # definition_node = NeoDefinition(definition=definition, embedding=definition_vector_embedding)
+            # definition_node.save()
+            # context_node, created = NeoContext.get_or_create(context=context)
+            # definition_node.context.connect(context_node)
+            # context_node.definition.connect(definition_node)
 
-            #     messages.info(request, 'No duplicates found. Saving term.')
+            
+            # obj.save()
+            # obj.alias.connect(alias_node)
+            # obj.definition.connect(definition_node)
+            # obj.context.connect(context_node)
 
-            # logger.info(deconfliction_response)
+            # if perfect dupe, return --- is perfect dupe - alias and definition and context are the same
 
-            logger.info(term)
-            logger.info(definition)
-            logger.info(context)
-            logger.info(context_description)
-            alias_node, created = NeoAlias.get_or_create(alias=term)
-            definition_node = NeoDefinition(definition=definition, embedding=generate_embedding(definition))
-            definition_node.save()
-            create_vector_index('definitions', 'NeoDefinition', 'embedding')
-            find_similar_text_by_embedding(definition_node.embedding, 'definition', 'definitions')
-            context_node, created = NeoContext.get_or_create(context=context, context_description=context_description)
-            definition_node.context.connect(context_node)
-            context_node.definition.connect(definition_node)
+            # im saving my neoterm: ------- unique case - if the definition is unique 
 
+            # create neodefinition
+                # embed the definition-------- end unique case
+            
+            # if embedding is similar -- --- - - - is duplicate - definition is same but alias and context are different
+                # create neoalias
+                # connect alias to neoterm
 
-            obj.save()
-            obj.alias.connect(alias_node)
-            obj.definition.connect(definition_node)
-            obj.context.connect(context_node)
+                # if context is new
+                    # create neocontext
+                    # connect context to neoalias
+                    # connect context to neoterm
+                
+                # if context already exists
+                    # connect context to neoalias
+            
+            # common tasks
+            # (1) see if exists
+            # (2) connect
 
             
         except Exception as e:

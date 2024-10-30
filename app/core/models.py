@@ -445,6 +445,20 @@ class NeoTerm(DjangoNode):
     class Meta:
         app_label = 'core'
 
+    def set_relationships(self, alias_node, definition_node, context_node):
+        self.alias.connect(alias_node)
+        self.context.connect(context_node)
+        self.definition.connect(definition_node)
+
+# @abstract
+# class NeoGeneric(DjangoNode):
+
+#     def are_any_nodes_present(self, model, **kwargs):
+#         pass
+#     def connect(self, node, relationship):
+#         pass
+
+
 class NeoAlias(DjangoNode):
     django_id = UniqueIdProperty()
     alias = StringProperty(unique_index=True,required=True)
@@ -457,33 +471,37 @@ class NeoAlias(DjangoNode):
     def get_or_create(cls, alias: str):
         """Retrieve an existing NeoAlias or create a new one if not found, with error handling."""
         try:
-            # Attempt to find an existing alias node
-            logger.info('attempting to query neo4j')
-            alias_node = cls.nodes.first_or_none(alias=alias)
+            alias_node = cls.nodes.get_or_none(alias=alias)
             
             if alias_node:
-                logger.info(f"NeoAlias found with alias '{alias}'")
                 return alias_node, False
 
-            # If no existing node is found, create and save a new one
             alias_node = NeoAlias(alias=alias)
             alias_node.save()
-            logger.info(f"New NeoAlias created with alias '{alias}'")
             return alias_node, True
 
         except exceptions.NeomodelException as e:
             logger.error(f"NeoModel-related error while getting or creating alias '{alias}': {e}")
-            raise e  # Re-raise the exception to be handled at a higher level
-
+            raise e
         except Exception as e:
             logger.error(f"Unexpected error in get_or_create for alias '{alias}': {e}")
-            raise e  # Re-raise unexpected errors for handling in save_model
-
+            raise e
+        
+    def set_relationships(self, term_node, context_node):
+        try:
+            self.term.connect(term_node)
+            self.context.connect(context_node)
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while connecting relationships for alias '{self.alias}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error while connecting relationships for alias '{self.alias}': {e}")
+            raise e
 
 class NeoContext(DjangoNode):
-    identifier = UniqueIdProperty()
+    django_id = UniqueIdProperty()
     context = StringProperty(unique_index = True)
-    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE')
+    context_description = RelationshipFrom('NeoContextDescription', 'RATIONALE', cardinality='One')
     term = RelationshipTo('NeoTerm', 'IS_A')
     alias = RelationshipFrom('NeoAlias', 'USED_IN')
     definition = RelationshipFrom('NeoDefinition', 'VALID_IN' )
@@ -492,33 +510,43 @@ class NeoContext(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, context: str): 
-
+    def get_or_create(cls, context_value: str): 
         try:
-            context_node = cls.nodes.get_or_none(context=context.upper())
+            context_node = cls.nodes.get_or_none(context=context_value.upper())
             if context_node:
-                logger.info(f"NeoContext found with context '{context}'")
+                logger.info(f"NeoContext found with context '{context_value}'")
                 return context_node, False
 
-            context_node = NeoContext(context=context.upper())
+            context_node = NeoContext(context=context_value.upper())
             context_node.save()
-
             return context_node, True
         
         except exceptions.NeomodelException as e:
-            logger.error(f"NeoModel-related error while getting or creating context '{context}': {e}")
+            logger.error(f"NeoModel-related error while getting or creating context '{context_value}': {e}")
             raise e
         except Exception as e:
-            logger.error(f"Unexpected error in get_or_create for context '{context}': {e}")
+            logger.error(f"Unexpected error in get_or_create for context '{context_value}': {e}")
             raise e
-        
-    
+             
+    def set_relationships(self, term_node, alias_node, definition_node, context_description_node):
+        try:
+            self.term.connect(term_node)
+            self.alias.connect(alias_node)
+            self.definition.connect(definition_node)
+            logger.info(f'{context_description_node}')
+            self.context_description.connect(context_description_node)
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while connecting relationships for context '{self.context}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error while connecting relationships for context '{self.context}': {e}")
+            raise e
 
 
 class NeoContextDescription(DjangoNode):
-    definition = RelationshipTo('NeoDefinition', 'BASED_ON')
-    context = RelationshipTo('NeoContext', 'RATIONALE')
     context_description = StringProperty(required=True)
+    definition = RelationshipTo('NeoDefinition', 'BASED_ON')
+    context = RelationshipTo('NeoContext', 'RATIONALE', cardinality='One')
 
     class Meta:
         app_label = 'core'
@@ -532,9 +560,7 @@ class NeoContextDescription(DjangoNode):
                 return context_description_node, False
             
             context_description_node = NeoContextDescription(context_description=context_description)
-
             context_description_node.save()
-
             return context_description_node, True
         
         except exceptions.NeomodelException as e:
@@ -542,6 +568,17 @@ class NeoContextDescription(DjangoNode):
             raise e
         except Exception as e:
             logger.error(f"Unexpected error in get_or_create for context_description '{context_description}': {e}")
+            raise e
+    
+    def set_relationships(self, definition_node, context_node):
+        try:
+            self.definition.connect(definition_node)
+            self.context.connect(context_node)
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while connecting relationships for context_description '{self.context_description}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error while connecting relationships for context_description '{self.context_description}': {e}")
             raise e
 
 class NeoDefinition(DjangoNode):
@@ -555,18 +592,23 @@ class NeoDefinition(DjangoNode):
         app_label = 'core'
 
     @classmethod
-    def get_or_create(cls, definition:str):
+    def get(cls, definition:str):
         try:
-            definition_node = cls.nodes.get_or_none(definition=definition)
-            if definition_node:
-                logger.info(f"NeoDefinition found with definition '{definition}'")
-                return definition_node, False
-            
-            definition_node = NeoDefinition(definition=definition)
-            definition_node.save()
-            
-            return definition_node, True
+            return cls.nodes.get_or_none(definition=definition)
+        
         except Exception as e:
-            logger.error(f"Error in get_or_create for NeoDefinition '{definition}': {e}")
+            logger.error(f"Error in get for NeoDefinition '{definition}': {e}")
+    
+    def set_relationships(self, term_node, context_node, context_description_node):
+        try:
+            self.term.connect(term_node)
+            self.context.connect(context_node)
+            self.context_description.connect(context_description_node)
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while connecting relationships for definition '{self.definition}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error while connecting relationships for definition '{self.definition}': {e}")
+            raise e
     
 
