@@ -1,5 +1,6 @@
 from django.shortcuts import render
 
+from core.models import NeoDefinition
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
@@ -24,3 +25,14 @@ def run_deconfliction(alias: str, definition: str, context: str, context_descrip
     except Exception as e:
         logger.error(f"Error in run_deconfliction: {e}")
         raise e
+    
+def deconfliction_admin_view(request):
+    collisions = []
+    deviations = []
+    duplicates = []
+    context = {
+        'collisions': collisions,
+        'deviations': deviations,
+        'duplicates': duplicates,
+    }
+    return render(request, 'admin/deconfliction_service/deconfliction_admin.html', context)

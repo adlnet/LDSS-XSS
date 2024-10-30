@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+  <h1>Deconfliction Service</h1>
+
+  <h2>Duplications</h2>
+  {% if duplications %}
+    <ul>
+      {% for duplication in duplications %}
+        <li>{{ duplication }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No duplications found.</p>
+  {% endif %}
+
+  <h2>Deviations</h2>
+  {% if deviations %}
+    <ul>
+      {% for deviation in deviations %}
+        <li>{{ deviation }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No deviations found.</p>
+  {% endif %}
+
+  <h2>Collisions</h2>
+  {% if collisions %}
+    <ul>
+      {% for collision in collisions %}
+        <li>{{ collision }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No collisions found.</p>
+  {% endif %}
+{% endblock %}
