@@ -242,7 +242,7 @@ class FilterMetadata(models.Model):
 
 
     ####
-
+## WE need to add a field for the username password and api key
 class CCVUpstream(models.Model):
     """Model for Upstream CCV communication """
     ACTIVE = 'ACTIVE'
@@ -258,6 +258,21 @@ class CCVUpstream(models.Model):
     )
 
     ccv_api_endpoint_status = models.CharField(max_length=200, choices=STATUS)
+
+    ccv_api_username = models.CharField(
+        max_length=150,
+        help_text='Enter the API username'
+    )
+    #TODO - how can we securely store this? What security models are we using in DJango? 
+    ccv_api_password = models.TextField(
+        help_text='Enter the API password'
+    )
+
+    ccv_api_key = models.CharField(
+        max_length=255,
+        help_text='Enter the API key'
+        null=True
+    )
 
     metadata_experiences = models.ManyToManyField(
         MetadataLedger, related_name='ccv_source', blank=True)

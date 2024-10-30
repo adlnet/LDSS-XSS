@@ -22,10 +22,11 @@ class LCVTermAdmin(admin.ModelAdmin):
 
 # testing the admin features brought over from ccv: 
 
+# we need to add API credentials username, pasword, API key.
 @admin.register(CCVUpstream)
 class CCVUpstreamAdmin(admin.ModelAdmin):
-    list_display = ('ccv_api_endpoint', 'ccv_api_endpoint_status')
-    fields = [('ccv_api_endpoint', 'ccv_api_endpoint_status'), ]
+    list_display = ('ccv_api_endpoint', 'ccv_api_endpoint_status', 'ccv_api_username')
+    fields = [('ccv_api_endpoint', 'ccv_api_endpoint_status', 'ccv_api_username', 'ccv_api_password', 'ccv_api_key'), ]
     filter_horizontal = ['metadata_experiences', 'supplemental_experiences']
 
 
