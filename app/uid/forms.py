@@ -1,5 +1,11 @@
 from django import forms
 from .models import Provider, LCVTerm  # Import Neo4j models directly
+#from .models import LastGeneratedUID
+
+#class LastGeneratedUIDForm(forms.ModelForm):
+ #   class Meta:
+  #      model = LastGeneratedUID
+   #     fields = ['uid']
 
 class ProviderForm(forms.ModelForm):
     uid = forms.CharField(max_length=255)
@@ -11,7 +17,8 @@ class ProviderForm(forms.ModelForm):
         return provider
     class Meta:
         model = Provider
-        fields = ['uid', 'name']
+        #fields = ['uid', 'name', 'echelon_level']
+        fields = ['name', 'echelon_level'] # UID is self generated
 
 class LCVTermForm(forms.ModelForm):
     uid = forms.CharField(max_length=255)
@@ -23,4 +30,5 @@ class LCVTermForm(forms.ModelForm):
         return lcv_term
     class Meta:
         model = LCVTerm
-        fields = ['uid', 'term']
+        #fields = ['uid', 'term', 'echelon_level']
+        fields = ['term', 'echelon_level'] # UID is self Generated

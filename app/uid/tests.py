@@ -1,12 +1,13 @@
 from django.test import TestCase
 from unittest.mock import patch, MagicMock
-from .models import CounterNode, Provider, LCVTerm, LanguageSet, UIDCounterDjangoModel, uid_generator # Import the UID generator from Models removed UIDCounter
-from .models import  UIDCounter, UIDNode, UIDGenerator
+from .models import Provider, LCVTerm, LanguageSet, UIDCounterDjangoModel, uid_generator # Import the UID generator from Models removed UIDCounter
+from .models import UIDCounter, UIDNode, UIDGenerator, CounterNode
 #from .utils import generate_uid, issue_uid, send_notification
 from .utils import send_notification
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from neomodel import db
+from .models import report_uids_by_echelon
 
 #updated Classes and Test Cases
 class TestCounterNode(TestCase):
@@ -54,11 +55,6 @@ class UIDGenerationTestCase(TestCase):
     def test_uid_generation_for_lcv_terms(self):
         #lcv_term = LCVTerm.objects.create(term="Test LCV Term")
         #lcv_term = LCVTerm(term="Test LCV Term").save()
-        #lcv_term.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
-        #self.assertIsNotNone(lcv_term.uid)
-        #self.assertTrue(lcv_term.uid.startswith("0x"))
-        #self.assertEqual(len(lcv_term.uid), 10)  # Assuming UID length is 10 (0x + 8 hex digits)
-        #self.assertNotIn(lcv_term.uid, [l.uid for l in LCVTerm.objects.all() if l.uid])
         lcv_term = LCVTerm(term="Test LCV Term")
         lcv_term.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
         self.assertIsNotNone(lcv_term.uid)
@@ -114,6 +110,19 @@ class UIDGenerationTestCase(TestCase):
             lcv_term = LCVTerm(term="Test LCV Term").save()
             language_set.add_term(lcv_term)
             self.assertIn(lcv_term, language_set.get_terms())
+
+    # Echelon Reporting Test
+    def test_report_uids_by_echelon():
+    # Setup: Create some UIDNodes with known echelon levels
+        UIDNode.create_node(uid="0x00000001", namespace="test", echelon_level="level_1")
+        UIDNode.create_node(uid="0x00000002", namespace="test", echelon_level="level_1")
+        UIDNode.create_node(uid="0x00000003", namespace="test", echelon_level="level_2")
+
+    # Execute the report function
+    result = report_uids_by_echelon("level_1")
+
+    # Assert that the correct UIDs are returned
+    assert result == ["0x00000001", "0x00000002"]
 
 # Potnetial code for upstream/downstream testing for Providers/LCVterms
     def test_upstream_providers(self):
