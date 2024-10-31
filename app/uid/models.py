@@ -1,10 +1,8 @@
-from django.db import models
-from neomodel import StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty
+from django.db import models, transaction #Import Models and transaction atomic
+from neomodel import db, StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty
 from datetime import datetime
 import time, logging, re # Import time module to use sleep, Logging and re
-from neomodel import db  # Ensure you have access to the Neo4j database connection
 from django_neomodel import DjangoNode
-from django.db import transaction  # Import transaction atomic
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -23,10 +21,11 @@ def check_neo4j_connection():
             time.sleep(1)  # Wait before retrying
     return False
 
+# Generated Logs to track instance, time of generation, uid, provider and lcv terms
 class GeneratedUIDLog(models.Model):
     uid = models.CharField(max_length=255, unique=True)
     generated_at = models.DateTimeField(auto_now_add=True)
-    generator_id = models.CharField(max_length=255)  # Track the generator instance
+    generator_id = models.CharField(max_length=255)
     provider = models.CharField(max_length=255, null=True)
     lcv_terms = models.CharField(max_length=255, null=True)
 
@@ -83,8 +82,6 @@ class UIDCounterDjangoModel(models.Model):
         cls.objects.get_or_create(id=1, defaults={'counter_value': 0})
         
 # Initialize the UID Generator
-#uid_generator = UIDGenerator()
-
 uid_generator = None
 
 def get_uid_generator():
@@ -131,32 +128,23 @@ class UIDGenerator:
         
         while True:
             new_uid = f"0x{uid_value:08x}"
-            #new_uid = f"0x{self.counter_obj.counter:08x}"
-            #return f"0x{self.counter_obj.counter:08x}"
-        
+            
             # Collision check
-            #if len(UIDNode.nodes.filter(uid=new_uid)) > 0:
             while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
                 logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
-                #suffix = 1
                 attempts += 1
 
-                # Adjust the UID by incrementing the suffix until a unique UID is found
-                #suffix = 1
-                uid_value += 1 # Increment the base value directly to resolve the collision
-                new_uid = f"0x{uid_value + suffix:08x}"
-                #while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
-                    #new_uid = f"0x{self.counter.counter + suffix:08x}"
-                 #   suffix += 1  # Increment suffix for the next attempt
-                    #attempts +=1 # Count attempts
+                # Adjust the UID by incrementing the base value directly to resolve the collision until a unique UID is found
+                uid_value += 1
+                new_uid = f"0x{uid_value:08x}"
                 logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
             
-            # If too many attempts, increment base counter
-            if attempts >= COLLISION_THRESHOLD:  # Define Collision threshold
+            # Collision threshold, if too many attempts, break, reset attempts and increment base counter
+            if attempts >= COLLISION_THRESHOLD:
                 logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
-                self.counter.increment()  # Adjust base counter
-                attempts = 0  # Reset attempts
-                break  # Break out to start over with new base UID
+                self.counter.increment()
+                attempts = 0
+                break
             logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
         
             # Compliance check
@@ -164,15 +152,15 @@ class UIDGenerator:
                 logger.warning(f"Generated UID {new_uid} is not compliant with the expected pattern.")
                 continue
             
-            # Sequential order check
+            # Sequential order check, if not sequential force increment and regenerate UID
             if hasattr (self, 'last_uid'):
                 if self.last_uid is not None and int(new_uid, 16) <= int(self.last_uid, 16):
                     logger.warning(f"UID {new_uid} is not sequential. Regenerating UID.")
-                    self.counter.increment()  # Force increment
+                    self.counter.increment()
                     continue
             
-            # Update the last issued UID
-            self.last_uid = new_uid # Save the last generated UID
+            # Update and save the last issued UID
+            self.last_uid = new_uid
             new_uid = f"0x{uid_value:08x}"
             LastGeneratedUID.save_last_generated_uid(new_uid)
 
@@ -219,35 +207,6 @@ class UIDNode(DjangoNode):
     class Meta:
         app_label = 'uid'
 
-# Neo4j Counter Node
-#class CounterNode(DjangoNode):
- #   counter = IntegerProperty(default=0)
-  #  updated_at = DateTimeProperty(default=lambda: datetime.now())
-
-   # @classmethod
-    #def get(cls):
-     #   counter_node = cls.nodes.first_or_none()
-      #  if counter_node is None:
-       #     return cls.create_node()
-        #return counter_node
-
-  #  @classmethod
-   # def create_node(cls):
-    #    counter = cls()
-     #   counter.save()
-      #  return counter
-    
-    #@classmethod
-    #def increment(cls):
-     #   counter = cls.get()
-      #  counter.counter += 1
-       # counter.updated_at = datetime.now()
-        #counter.save()
-        #return counter
-    
-    #class Meta: 
-      #  app_label = 'uid'
-
 # Provider and LCVTerms now Nodes
 class Provider(DjangoNode):
     uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
@@ -273,7 +232,7 @@ class ProviderDjangoModel(models.Model):
         verbose_name = "Provider"
         verbose_name_plural = "Providers"
 
-
+# LCV Terms model for DjangoNode
 class LCVTerm(DjangoNode):
     uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
@@ -337,7 +296,6 @@ class LastGeneratedUID(models.Model):
     def save_last_generated_uid(cls, new_uid):
         """Save the last generated UID to the database."""
         with transaction.atomic():  # Ensure atomic operation
-        #LastGeneratedUID.objects.update_or_create(defaults={'uid': new_uid}, id=1)
             cls.objects.update_or_create(defaults={'uid': new_uid}, id=1)
 
     @classmethod
@@ -365,7 +323,7 @@ class LastGeneratedUID(StructuredNode):
         else:
             cls(uid=new_uid).save()
 
-# Reporting fucntion for all generated UIDs
+# Reporting function for all generated UIDs
 def report_all_generated_uids():
     """Retrieve all generated UIDs from the log."""
     logs = GeneratedUIDLog.objects.all()
@@ -384,5 +342,16 @@ def report_uid_collisions():
         # Store the combination of parent_id and uid
         uid_dict[(log.parent_id, log.uid)].append(log)
 
+        # Collect UIDs for Providers
+        providers = ProviderDjangoModel.objects.all()
+        for provider in providers:
+            uid_dict[(provider.uid, provider.uid)].append(provider)
+
+        # Collect UIDs for LCVTerms
+        lcv_terms = LCVTermDjangoModel.objects.all()
+        for lcv_term in lcv_terms:
+            uid_dict[(lcv_term.uid, lcv_term.uid)].append(lcv_term)
+
     # Find collisions (where length > 1)
     collisions = {key: value for key, value in uid_dict.items() if len(value) > 1}
+    return collisions
