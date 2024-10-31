@@ -8,6 +8,7 @@ from django_neomodel import DjangoNode
 import logging
 from django.db import transaction  # Import transaction atomic
 import re
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class GeneratedUIDLog(models.Model):
     uid = models.CharField(max_length=255, unique=True)
     generated_at = models.DateTimeField(auto_now_add=True)
     generator_id = models.CharField(max_length=255)  # Track the generator instance
+    provider = models.CharField(max_length=255, null=True)
+    lcv_terms = models.CharField(max_length=255, null=True)
 
     class Meta:
         verbose_name = "Generated UID Log"
@@ -100,6 +103,17 @@ def is_uid_compliant(uid):
     """Check if the UID complies with the specified pattern."""
     return bool(re.match(UID_PATTERN, uid))
 
+def report_malformed_uids():
+    """Generate a report of all malformed UIDs."""
+    malformed_uids = []
+    logs = GeneratedUIDLog.objects.all()
+    
+    for log in logs:
+        if not is_uid_compliant(log.uid):
+            malformed_uids.append(log.uid)
+    
+    return malformed_uids
+
 # Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
 class UIDGenerator:
     def __init__(self):
@@ -131,11 +145,12 @@ class UIDGenerator:
                 attempts += 1
 
                 # Adjust the UID by incrementing the suffix until a unique UID is found
-                suffix = 1
+                #suffix = 1
+                uid_value += 1 # Increment the base value directly to resolve the collision
                 new_uid = f"0x{uid_value + suffix:08x}"
-                while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
+                #while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
                     #new_uid = f"0x{self.counter.counter + suffix:08x}"
-                    suffix += 1  # Increment suffix for the next attempt
+                 #   suffix += 1  # Increment suffix for the next attempt
                     #attempts +=1 # Count attempts
                 logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
             
@@ -353,10 +368,24 @@ class LastGeneratedUID(StructuredNode):
         else:
             cls(uid=new_uid).save()
 
-
-
 # Reporting fucntion for all generated UIDs
 def report_all_generated_uids():
     """Retrieve all generated UIDs from the log."""
     logs = GeneratedUIDLog.objects.all()
     return [(log.uid, log.generated_at, log.generator_id) for log in logs]
+
+# Reporting all UID collision
+def report_uid_collisions():
+    """Generate a report of potential UID collisions across all UID microservices."""
+    # Retrieve all UID logs
+    logs = GeneratedUIDLog.objects.all()
+
+    # Dictionary to track UIDs by (parent_id, uid)
+    uid_dict = defaultdict(list)
+
+    for log in logs:
+        # Store the combination of parent_id and uid
+        uid_dict[(log.parent_id, log.uid)].append(log)
+
+    # Find collisions (where length > 1)
+    collisions = {key: value for key, value in uid_dict.items() if len(value) > 1}
