@@ -8,6 +8,8 @@ from neomodel import db
 from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
 from .forms import ProviderForm, LCVTermForm
 from .models import report_all_uids, report_uids_by_echelon
+from rest_framework import viewsets
+from rest_framework.response import Response
 #from .utils import generate_uid # import generate_uid 
 
 # Set up logging to capture errors and important information
@@ -118,6 +120,14 @@ def generate_report(request, echelon_level=None):
 
     return JsonResponse({'uids': uids})
     #return JsonResponse({'message': 'Report generation is not avaliable yet'}, status=200)
+
+# Create API endpoint to share current UID repo
+class UIDRepoViewSet(viewsets.ViewSet):
+    def list(self, request):
+        # Retrieve all UIDs from the GeneratedUIDLog model
+        uids = GeneratedUIDLog.objects.all()
+        uid_data = [{'uid': log.uid, 'generated_at': log.generated_at, 'generator_id': log.generator_id} for log in uids]
+        return Response(uid_data)
 
 # Postman view
 def export_to_postman(request, uid):
