@@ -1,5 +1,5 @@
 version: "3"
-
+ 
 services:
   db-xss:
     image: mysql:5.7
@@ -13,6 +13,7 @@ services:
       # MYSQL_HOST: ''
     networks:
       - openlxp
+    
   neo4j:
     image: neo4j:5.15.0
     ports:
@@ -28,8 +29,9 @@ services:
       context: .
     ports:
       - "8010:8020"
+    restart: always
     command: >
-      sh -c ". /opt/app/start-app.sh"
+      sh -c "python manage.py makemigrations && python manage.py migrate && . /opt/app/start-app.sh"
     environment:
       DB_NAME: "${DB_NAME}"
       DB_USER: "${DB_USER}"
@@ -66,4 +68,5 @@ volumes:
     driver: local
 networks:
   openlxp:
+    driver: bridge
     driver: bridge
