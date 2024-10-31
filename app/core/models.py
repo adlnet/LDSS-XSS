@@ -12,6 +12,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django_neomodel import DjangoNode
+from neomodel import StringProperty, UniqueIdProperty
 from model_utils.models import TimeStampedModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
