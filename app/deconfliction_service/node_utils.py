@@ -46,12 +46,7 @@ def get_terms_with_multiple_definitions():
 
     logger.info(f"Results: {results}")
     
-    # terms = []
-    # for record in results:
-    #     term_node = NeoTerm.inflate(record[0])
-    #     terms.append((term_node, record[1]))  # Append the term and its definition count
-    
-    # return terms
+    return results
 
 def show_current_vector_indeces():
     try:
@@ -144,7 +139,7 @@ def is_duplicate(similarity_score: float):
     return similarity_score >= 0.9
 
 def is_collision(similarity_score: float):
-    return 0.9 > similarity_score > 0.4
+    return 0.9 > similarity_score > 0.8
  
 def is_unique(similarity_score: float):
-    return similarity_score < 0.4
+    return similarity_score < 0.8

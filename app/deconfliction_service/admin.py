@@ -21,7 +21,10 @@ class DeconflictionAdmin(admin.ModelAdmin):
                  name='admin_deconfliction_view'),
             path('resolve-collision/<int:id_1>/<int:id_2>/',
                 self.admin_site.admin_view(views.resolve_collision),
-                name='admin_resolve_collision') 
+                name='admin_resolve_collision'),
+            path('deconfliction/merge_definitions/<int:keep_id>/<int:remove_id>/', 
+                views.merge_duplicate_definitions, 
+                name='admin_merge_definitions'),
         ]
         return custom_urls + urls
     

@@ -3,6 +3,7 @@ from django.urls import path
 from django.shortcuts import render, redirect
 from django.http import HttpRequest
 
+from deconfliction_service.node_utils import get_terms_with_multiple_definitions, is_any_node_present
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
                          TransformationLedger)
 from django_neomodel import admin as neomodel_admin
@@ -132,15 +133,15 @@ class NeoTermAdminForm(forms.ModelForm):
         model = NeoTerm
         fields = ['lcvid', 'alias', 'definition', 'context', 'context_description']
 
-    # def clean_definition(self):
-    #     definition = self.cleaned_data.get('definition')
+    def clean_definition(self):
+        definition = self.cleaned_data.get('definition')
 
-    #     get_terms_with_multiple_definitions()
-    #     # Check if the definition already exists in the NeoDefinition model
-    #     if is_any_node_present(NeoDefinition, definition=definition):
-    #         raise forms.ValidationError(f"A definition of '{definition}' already exists.")
+        get_terms_with_multiple_definitions()
+        # Check if the definition already exists in the NeoDefinition model
+        if is_any_node_present(NeoDefinition, definition=definition):
+            raise forms.ValidationError(f"A definition of '{definition}' already exists.")
         
-    #     return definition  # Return the cleaned value
+        return definition  # Return the cleaned value
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
