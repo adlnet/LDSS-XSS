@@ -46,12 +46,7 @@ def get_terms_with_multiple_definitions():
 
     logger.info(f"Results: {results}")
     
-    # terms = []
-    # for record in results:
-    #     term_node = NeoTerm.inflate(record[0])
-    #     terms.append((term_node, record[1]))  # Append the term and its definition count
-    
-    # return terms
+    return results
 
 def show_current_vector_indeces():
     try:
