@@ -19,6 +19,9 @@ class DeconflictionAdmin(admin.ModelAdmin):
             path('deconfliction/', 
                  self.admin_site.admin_view(views.deconfliction_admin_view),
                  name='admin_deconfliction_view'),
+            path('resolve-collision/<int:id_1>/<int:id_2>/',
+                self.admin_site.admin_view(views.resolve_collision),
+                name='admin_resolve_collision') 
         ]
         return custom_urls + urls
     

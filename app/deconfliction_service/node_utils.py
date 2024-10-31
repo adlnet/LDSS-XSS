@@ -108,6 +108,21 @@ def find_similar_text_by_node_field(node_name, field_name, return_field_name, in
     logger.info(f"Similarity results successful. Most similar items: {results}")
     return results
 
+def find_colliding_definition_nodes():
+    cypher_query = """
+    MATCH (n:NeoDefinition)-[:IS_COLLIDING_WITH]->(m:NeoDefinition)
+    RETURN {
+        definition_1: n.definition,
+        id_1: id(n),
+        definition_2: m.definition,
+        id_2: id(m)
+    } as collision
+    """
+
+    results, _ = db.cypher_query(cypher_query)
+    logger.info(f"Colliding definition nodes: {results}")
+    return results
+
 def evaluate_deconfliction_status(similarity_results):
 
     if not similarity_results:

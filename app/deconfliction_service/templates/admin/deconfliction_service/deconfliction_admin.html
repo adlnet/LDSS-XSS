@@ -2,38 +2,46 @@
 {% load static %}
 
 {% block content %}
-  <h1>Deconfliction Service</h1>
+<h1>Deconfliction Service</h1>
 
-  <h2>Duplications</h2>
-  {% if duplications %}
+<h2>Duplications</h2>
+{% if duplications %}
     <ul>
-      {% for duplication in duplications %}
+    {% for duplication in duplications %}
         <li>{{ duplication }}</li>
-      {% endfor %}
+    {% endfor %}
     </ul>
-  {% else %}
+{% else %}
     <p>No duplications found.</p>
-  {% endif %}
+{% endif %}
 
-  <h2>Deviations</h2>
-  {% if deviations %}
+<h2>Deviations</h2>
+{% if deviations %}
     <ul>
-      {% for deviation in deviations %}
+    {% for deviation in deviations %}
         <li>{{ deviation }}</li>
-      {% endfor %}
+    {% endfor %}
     </ul>
-  {% else %}
+{% else %}
     <p>No deviations found.</p>
-  {% endif %}
+{% endif %}
 
-  <h2>Collisions</h2>
-  {% if collisions %}
+<h2>Collisions</h2>
+{% if collisions %}
     <ul>
-      {% for collision in collisions %}
-        <li>{{ collision }}</li>
-      {% endfor %}
+    {% for collision in collisions %}
+        <li>
+            <strong>Definition 1:</strong> {{ collision.definition_1 }}
+            <br>
+            <strong>Definition 2:</strong> {{ collision.definition_2 }}
+            <br>
+            <a href="{% url 'admin:admin_resolve_collision' collision.id_1 collision.id_2 %}" 
+               class="button">Resolve Collision</a>
+        </li>
+        <br>
+    {% endfor %}
     </ul>
-  {% else %}
+{% else %}
     <p>No collisions found.</p>
-  {% endif %}
+{% endif %}
 {% endblock %}
