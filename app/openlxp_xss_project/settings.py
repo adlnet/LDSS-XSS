@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'users',
     'social_django',
     'openlxp_authentication',
+    'deconfliction_service',
 ]
 
 MIDDLEWARE = [
