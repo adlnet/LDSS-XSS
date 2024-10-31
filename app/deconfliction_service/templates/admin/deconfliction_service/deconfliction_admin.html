@@ -3,6 +3,24 @@
 
 {% block content %}
 <h1>Deconfliction Service</h1>
+<h2>Collisions</h2>
+{% if collisions %}
+<ul>
+    {% for collision in collisions %}
+    <li>
+        <strong>Definition 1:</strong> {{ collision.definition_1 }}
+        <br>
+        <strong>Definition 2:</strong> {{ collision.definition_2 }}
+        <br>
+        <a href="{% url 'admin:admin_resolve_collision' collision.id_1 collision.id_2 %}"
+           class="button">Resolve Collision</a>
+    </li>
+    <br>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No collisions found.</p>
+{% endif %}
 
 <h2>Duplicate Definitions</h2>
 {% if duplicates %}
@@ -41,22 +59,5 @@
 <p>No duplicate definitions found.</p>
 {% endif %}
 
-<h2>Collisions</h2>
-{% if collisions %}
-<ul>
-    {% for collision in collisions %}
-    <li>
-        <strong>Definition 1:</strong> {{ collision.definition_1 }}
-        <br>
-        <strong>Definition 2:</strong> {{ collision.definition_2 }}
-        <br>
-        <a href="{% url 'admin:admin_resolve_collision' collision.id_1 collision.id_2 %}"
-           class="button">Resolve Collision</a>
-    </li>
-    <br>
-    {% endfor %}
-</ul>
-{% else %}
-<p>No collisions found.</p>
-{% endif %}
+<h2>Deviations</h2> {% if deviations %} <ul> {% for deviation in deviations %} <li>{{ deviation }}</li> {% endfor %} </ul> {% else %} <p>No deviations found.</p> {% endif %}
 {% endblock %}
