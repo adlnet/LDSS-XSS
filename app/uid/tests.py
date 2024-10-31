@@ -1,8 +1,7 @@
 from django.test import TestCase
 from unittest.mock import patch, MagicMock
 from .models import Provider, LCVTerm, LanguageSet, UIDCounterDjangoModel, uid_generator # Import the UID generator from Models removed UIDCounter
-from .models import UIDCounter, UIDNode, UIDGenerator, CounterNode
-#from .utils import generate_uid, issue_uid, send_notification
+from .models import UIDCounter, UIDNode, UIDGenerator
 from .utils import send_notification
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -46,15 +45,12 @@ class UIDGenerationTestCase(TestCase):
 
     def test_uid_generation_for_providers(self):
         provider = Provider(name="Test Provider")
-        #provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
         provider.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
         self.assertIsNotNone(provider.uid)
         self.assertTrue(provider.uid.startswith("0x"))
         self.assertEqual(len(provider.uid), 10)
 
     def test_uid_generation_for_lcv_terms(self):
-        #lcv_term = LCVTerm.objects.create(term="Test LCV Term")
-        #lcv_term = LCVTerm(term="Test LCV Term").save()
         lcv_term = LCVTerm(term="Test LCV Term")
         lcv_term.uid = UIDGenerator().generate_uid()  # Ensure UID is generated
         self.assertIsNotNone(lcv_term.uid)
@@ -64,7 +60,6 @@ class UIDGenerationTestCase(TestCase):
         
     def test_uid_generation_for_language_sets(self): #Changes to reflect LanguageSet now DjangoNode
         with db.transaction:
-            #language_set = LanguageSet.objects.create(name="Test Language Set")
             language_set = LanguageSet(name="Test Language Set").save()
             self.assertIsNotNone(language_set.uid)
             self.assertTrue(language_set.uid.startswith("0x"))
@@ -72,30 +67,24 @@ class UIDGenerationTestCase(TestCase):
             self.assertNotIn(language_set.uid, [ls.uid for ls in LanguageSet.objects.all() if ls.uid])
 
     def test_issuing_uid_to_providers(self):
-        #provider = Provider.objects.create(name="Test Provider")
         provider = Provider(name="Test Provider").save()
         self.assertIsNotNone(provider.uid)
         self.assertTrue(provider.uid.startswith("0x"))
         self.assertEqual(provider.uid, uid_generator.generate_uid())
 
     def test_issuing_uid_to_lcv_terms(self):
-        #lcv_term = LCVTerm.objects.create(term="Test LCV Term")
         lcv_term = LCVTerm(term="Test LCV Term").save()
         self.assertIsNotNone(lcv_term.uid)
         self.assertTrue(lcv_term.uid.startswith("0x"))
         self.assertEqual(lcv_term.uid, uid_generator.generate_uid())
 
     def test_verification_of_uid_assignment(self):
-        #provider = Provider.objects.create(name="Test Provider")
-        #lcv_term = LCVTerm.objects.create(term="Test LCV Term")
         provider = Provider(name="Test Provider").save()
         lcv_term = LCVTerm(term="Test LCV Term").save()
         self.assertEqual(provider.uid, uid_generator.generate_uid())
         self.assertEqual(lcv_term.uid, uid_generator.generate_uid())
 
     def test_notification_on_successful_uid_issuance(self):
-        #provider = Provider.objects.create(name="Test Provider")
-        #lcv_term = LCVTerm.objects.create(term="Test LCV Term")
         provider = Provider(name="Test Provider").save()
         lcv_term = LCVTerm(term="Test LCV Term").save()
         provider_uid = provider.uid

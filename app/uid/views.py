@@ -1,14 +1,14 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpRequest, JsonResponse
 #from uuid import uuid5, NAMESPACE_URL
-import json
-import logging
+import json, logging
 from neomodel import db
-#from .models import CounterNode, 
 from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
 from .forms import ProviderForm, LCVTermForm
-from .models import report_all_uids, report_uids_by_echelon
-#from .utils import generate_uid # import generate_uid 
+from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog
+from rest_framework import viewsets
+from rest_framework.response import Response
+
 
 # Set up logging to capture errors and important information
 logger = logging.getLogger(__name__)
@@ -22,9 +22,6 @@ except RuntimeError as e:
     uid_generator = None  # Handle initialization failure appropriately
 
 MAX_CHILDREN = 2**32 -1
-
-# Initialzie the UID generator
-#uid_generator = UIDGenerator()
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):
@@ -123,8 +120,15 @@ def generate_report(request, echelon_level=None):
        uids = report_uids_by_echelon(echelon_level)
 
     return JsonResponse({'uids': uids})
-    #return JsonResponse({'message': 'Report generation is not avaliable yet'}, status=200)
 
+# Create API endpoint to share current UID repo
+class UIDRepoViewSet(viewsets.ViewSet):
+    def list(self, request):
+        # Retrieve all UIDs from the GeneratedUIDLog model
+        uids = GeneratedUIDLog.objects.all()
+        uid_data = [{'uid': log.uid, 'generated_at': log.generated_at, 'generator_id': log.generator_id} for log in uids]
+        return Response(uid_data)
+    
 # Postman view
 def export_to_postman(request, uid):
     try:
