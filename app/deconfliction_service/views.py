@@ -24,10 +24,10 @@ def run_deconfliction(alias: str, definition: str, context: str, context_descrip
         definition_vector_embedding = generate_embedding(definition)
         create_vector_index('definitions', 'NeoDefinition', 'embedding')
         results = find_similar_text_by_embedding(definition_vector_embedding, 'definition', 'definitions')
-        deconfliction_status, most_similar_text = evaluate_deconfliction_status(results)
+        deconfliction_status, most_similar_text, highest_score = evaluate_deconfliction_status(results)
         if deconfliction_status == 'unique':
-            return definition_vector_embedding, deconfliction_status, None
-        return definition_vector_embedding, deconfliction_status, most_similar_text
+            return definition_vector_embedding, deconfliction_status, None, None
+        return definition_vector_embedding, deconfliction_status, most_similar_text, highest_score
     except Exception as e:
         logger.error(f"Error in run_deconfliction: {e}")
         raise e

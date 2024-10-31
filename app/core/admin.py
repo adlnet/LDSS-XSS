@@ -285,13 +285,8 @@ class NeoTermAdmin(admin.ModelAdmin):
         for index, row in df.iterrows():
             try:
                 logger.info(f"This is the term for index {index}: {row['Term']}")
-                term = NeoTerm(
-                    term=row['Term'],
-                    definition=row['Definition'],
-                    context=row['Context'],
-                    context_description=row['Context Description']
-                )
-                term.save()
+
+                run_node_creation(alias=row['Term'], definition=row['Definition'], context=row['Context'], context_description=row['Context Description'])
             except Exception as e:
                 logger.error(f'Error creating term for index {index}: {str(e)}')
                 raise TermCreationError(f'Failed to create term for row {index + 1}: {str(e)}')

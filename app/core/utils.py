@@ -7,7 +7,8 @@ logger = logging.getLogger('dict_config_logger')
 def run_node_creation(alias: str, definition: str, context: str, context_description: str):
     try:
         logger.info('Running Deconfliction')
-        definition_vector_embedding, deconfliction_status, most_similar_text = run_deconfliction(alias, definition, context, context_description)
+        definition_vector_embedding, deconfliction_status, most_similar_text, highest_score = run_deconfliction(alias, definition, context, context_description)
+        logger.info(f'Highest score: {highest_score}')
         logger.info('Deconfliction complete')
         logger.info(f'Deconfliction result: {deconfliction_status}')
         
@@ -17,7 +18,7 @@ def run_node_creation(alias: str, definition: str, context: str, context_descrip
             alias_created, context_created, context_description_created = run_duplicate_definition_creation(alias, most_similar_text, context, context_description)
             return alias_created, context_created, context_description_created
         elif deconfliction_status == 'collision':
-            run_collision_definition_creation(alias, most_similar_text, definition, context, context_description, definition_vector_embedding)
+            run_collision_definition_creation(alias, most_similar_text, definition, context, context_description, definition_vector_embedding, highest_score)
             
 
     except Exception as e: 
@@ -88,7 +89,7 @@ def run_duplicate_definition_creation(alias, definition, context, context_descri
         logger.error(f"Error in run_duplicate_definition_creation: {e}")
         raise e
 
-def run_collision_definition_creation(alias, most_similar_definition, definition, context, context_description, definition_vector_embedding):
+def run_collision_definition_creation(alias, most_similar_definition, definition, context, context_description, definition_vector_embedding, highest_score):
     try:
         alias_node, alias_created = NeoAlias.get_or_create(alias=alias)
         existing_definition_node = NeoDefinition.nodes.get(definition=most_similar_definition)

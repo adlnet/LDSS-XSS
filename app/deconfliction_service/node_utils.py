@@ -126,25 +126,25 @@ def find_colliding_definition_nodes():
 def evaluate_deconfliction_status(similarity_results):
 
     if not similarity_results:
-        return 'unique', None
+        return 'unique', None, None
     
     most_similar_text, highest_score = max(similarity_results, key=lambda x: x[1])
 
     logger.info(f"Most similar text: {most_similar_text}")
     if is_unique(highest_score):
-        return 'unique', None
+        return 'unique', None, None
     if is_duplicate(highest_score):
-        return 'duplicate', most_similar_text
+        return 'duplicate', most_similar_text, highest_score
     if is_collision(highest_score):
-        return 'collision', most_similar_text
+        return 'collision', most_similar_text, highest_score
     else:
-        return 'unique'
+        return 'unique', None, None
     
 def is_duplicate(similarity_score: float):
     return similarity_score >= 0.9
 
 def is_collision(similarity_score: float):
-    return 0.9 > similarity_score > 0.4
+    return 0.9 > similarity_score > 0.8
  
 def is_unique(similarity_score: float):
-    return similarity_score < 0.4
+    return similarity_score < 0.8
