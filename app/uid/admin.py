@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib import messages
 from .models import Provider, LCVTerm
 from .models import ProviderDjangoModel, LCVTermDjangoModel
 from .ccvmodels import CCVUpstream, CCVDownstream
@@ -34,6 +35,10 @@ class CCVUpstreamAdmin(admin.ModelAdmin):
     fields = [('ccv_api_endpoint', 'ccv_api_endpoint_status', 'ccv_api_username', 'ccv_api_password', 'ccv_api_key'), ]
     filter_horizontal = ['metadata_experiences', 'supplemental_experiences']
 
+## Alert user that save was successfull
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        messages.success(request, "API endpoint and credentials have been successfully configured.")
 
 @admin.register(CCVDownstream)
 class CCVDownstreamAdmin(admin.ModelAdmin):

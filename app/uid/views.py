@@ -24,6 +24,8 @@ except RuntimeError as e:
 MAX_CHILDREN = 2**32 -1
 
 # Create your views here.
+
+# Generate a unique UID Node
 def generate_uid_node(request: HttpRequest):
     request_body = json.loads(request.body)
     print(request_body)
@@ -163,3 +165,34 @@ def export_to_postman(request, uid):
                 return JsonResponse({'error': 'UID not found'}, status=404)
 
     return JsonResponse(data)
+
+## Method to search the definition space for a term lcv
+def compare_terms_lcv(request):
+    if request.method == 'POST':
+        request_body = json.loads(request.body)
+        search_term = request_body.get('term', None)
+
+        if not search_term:
+            return JsonResponse({'error': 'No term provided'}, status=400)
+
+        # Search in LCVs
+        lcv_results = LCVTerm.nodes.filter(term__icontains=search_term)
+
+        lcv_uids = [term.uid for term in lcv_results]
+        
+        return JsonResponse({'lcv_uids': lcv_uids})  
+    
+## Method to search the definition space for a term ccv ###But there is no ccv term node, does this need to be made? 
+#def compare_terms_lcv(request):
+ #   if request.method == 'POST':
+  #      request_body = json.loads(request.body)
+   #     search_term = request_body.get('term', None)
+
+    #    if not search_term:
+     #       return JsonResponse({'error': 'No term provided'}, status=400)
+
+        # Search in CCVs
+      #  ccv_results = CCVTerm.nodes.filter(term__icontains=search_term)
+       # ccv_uids = [term.uid for term in ccv_results]
+
+        #return JsonResponse({'lcv_uids': ccv_uids})

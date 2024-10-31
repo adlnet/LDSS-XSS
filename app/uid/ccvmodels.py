@@ -3,6 +3,8 @@ import uuid
 from django.conf import settings
 from django.core.validators import RegexValidator
 from django.db import models
+##For encryption of key values
+from encrypted_model_fields.fields import EncryptedTextField, EncryptedCharField
 from django.forms import ValidationError
 from django.urls import reverse
 
@@ -242,7 +244,7 @@ class FilterMetadata(models.Model):
 
 
     ####
-## WE need to add a field for the username password and api key
+## TODO - may need to change fields to not allow null
 class CCVUpstream(models.Model):
     """Model for Upstream CCV communication """
     ACTIVE = 'ACTIVE'
@@ -254,24 +256,32 @@ class CCVUpstream(models.Model):
 
     ccv_api_endpoint = models.CharField(
         max_length=200,
-        help_text='Enter the CCV Instance API endpoint'
+        help_text='Enter the CCV Instance API endpoint',
+        null=True,
+        blank=False
     )
 
     ccv_api_endpoint_status = models.CharField(max_length=200, choices=STATUS)
 
-    ccv_api_username = models.CharField(
+    ccv_api_username = EncryptedCharField(
         max_length=150,
-        help_text='Enter the API username'
+        help_text='Enter the API username',
+         null=True,
+        blank=False
     )
-    #TODO - how can we securely store this? What security models are we using in DJango? 
-    ccv_api_password = models.TextField(
-        help_text='Enter the API password'
+    
+    ccv_api_password =EncryptedCharField(
+        max_length=150,
+        help_text='Enter the API password',
+         null=True,
+        blank=False
     )
 
-    ccv_api_key = models.CharField(
-        max_length=255,
-        help_text='Enter the API key'
-        null=True
+    ccv_api_key = EncryptedCharField(
+        max_length=150,
+        help_text='Enter the API key',
+         null=True,
+        blank=False
     )
 
     metadata_experiences = models.ManyToManyField(

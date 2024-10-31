@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'social_django',
     'uid',
     'openlxp_authentication',
+    'encrypted_model_fields',
 ]
 
 MIDDLEWARE = [
@@ -88,6 +89,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'openlxp_xss_project.wsgi.application'
 
+## Encryption key for django-encrypted-model-fields
+
+FIELD_ENCRYPTION_KEY = 'NzVkgiLCyzOePBWCKvUTc38M4YWiQjsD0zc9m7x_iLo='
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
