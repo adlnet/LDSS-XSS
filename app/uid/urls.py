@@ -14,4 +14,5 @@ urlpatterns = [
     path('export/<str:uid>/', export_to_postman, name='export_to_postman'),
     path('report/<str:echelon_level>/', generate_report, name='generate_report'),
     path('api/uid-repo/', UIDRepoViewSet.as_view({'get': 'list'}), name='uid-repo'),
+    path('home/', views.home, name='home'),
 ]

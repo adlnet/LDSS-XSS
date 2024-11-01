@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> <!-- Link to any CSS file -->
+</head>
+<body>
+    <header>
+        <h1>Welcome to the Provider Management System</h1>
+    </header>
+    
+    <nav>
+        <ul>
+            <li><a href="{% url 'uid:create_provider' %}">Create Provider</a></li>
+            <li><a href="{% url 'uid:create_lcvterm' %}">Create LCVTerm</a></li>
+            <li><a href="{% url 'uid:success' %}">Success Page</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <h2>What would you like to do?</h2>
+        <p>Use the navigation above to manage your providers and LCVTerms.</p>
+    </main>
+
+    <footer>
+        <p>&copy; {{ year }} ADL</p>
+    </footer>
+</body>
+</html>

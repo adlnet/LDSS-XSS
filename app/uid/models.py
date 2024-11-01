@@ -123,7 +123,8 @@ class UIDGenerator:
 # Updated with checks for collision detection, compliance detection, sequential order and regeneration.
     def generate_uid(self):
         uid_value = self.counter.increment()
-        self.generator_id = uid_value.generator_id  # Unique ID for this generator instance
+        #self.generator_id = uid_value.generator_id  # Unique ID for this generator instance
+        self.generator_id = f"0x{uid_value:08x}" 
         attempts = 0 # Initialize attempts here change as needed
         
         while True:
@@ -182,7 +183,8 @@ class UIDNode(DjangoNode):
     namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True)
     created_at = DateTimeProperty(default_now=True)
-    echelon_level = StringProperty(required=True)  # Add this line to define echelon levels
+    #echelon_level = StringProperty(required=True)  # Add this line to define echelon levels
+    echelon_level = IntegerProperty(required=False, default=None) 
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
@@ -211,7 +213,8 @@ class UIDNode(DjangoNode):
 class Provider(DjangoNode):
     uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     name = StringProperty(required=True)
-    echelon_level = StringProperty(required=True)  # Required for echelon check
+    echelon_level = IntegerProperty(required=False, default=None) 
+    #echelon_level = StringProperty(required=True)  # Required for echelon check
     lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
     class Meta:
@@ -237,7 +240,8 @@ class LCVTerm(DjangoNode):
     uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
-    echelon_level = StringProperty(required=True)  # Required for echelon check
+    echelon_level = IntegerProperty(required=False, default=None) 
+    #echelon_level = StringProperty(required=True)  # Required for echelon check
     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
     class Meta:

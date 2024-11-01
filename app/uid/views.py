@@ -105,6 +105,9 @@ def create_lcvterm(request):
 def success_view(request):
     return render(request, 'success.html', {'message': 'Operation completed successfully!'})
 
+def home(request):
+    return render(request, 'uid/home.html'),
+
 # Report Generation by echelon
 def generate_report(request, echelon_level=None):
     if echelon_level == "root": # Getting all root level UID for echelon report
