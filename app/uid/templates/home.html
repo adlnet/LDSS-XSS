@@ -1,10 +1,12 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> <!-- Link to any CSS file -->
+    <!-- <link rel="stylesheet" href="{% static 'css/styles.css' %}">  --> <!-- Link to any CSS file -->
 </head>
 <body>
     <header>
@@ -15,7 +17,7 @@
         <ul>
             <li><a href="{% url 'uid:create_provider' %}">Create Provider</a></li>
             <li><a href="{% url 'uid:create_lcvterm' %}">Create LCVTerm</a></li>
-            <li><a href="{% url 'uid:success' %}">Success Page</a></li>
+            {# <li><a href="{% url 'uid:success' %}">Success Page</a></li> #}
         </ul>
     </nav>
 
@@ -25,7 +27,7 @@
     </main>
 
     <footer>
-        <p>&copy; {{ year }} ADL</p>
+        <p>&copy; {{ 2024 }} ADL</p>
     </footer>
 </body>
 </html>

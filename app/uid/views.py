@@ -106,7 +106,7 @@ def success_view(request):
     return render(request, 'success.html', {'message': 'Operation completed successfully!'})
 
 def home(request):
-    return render(request, 'uid/home.html'),
+    return render(request, 'home.html', {'message': 'Going Home'})
 
 # Report Generation by echelon
 def generate_report(request, echelon_level=None):
