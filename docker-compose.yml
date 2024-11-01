@@ -69,4 +69,3 @@ volumes:
 networks:
   openlxp:
     driver: bridge
-    driver: bridge

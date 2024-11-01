@@ -149,15 +149,15 @@ class NeoTermAdminForm(forms.ModelForm):
         model = NeoTerm
         fields = ['lcvid', 'alias', 'definition', 'context', 'context_description']
 
-    def clean_definition(self):
-        definition = self.cleaned_data.get('definition')
+    # def clean_definition(self):
+    #     definition = self.cleaned_data.get('definition')
 
-        get_terms_with_multiple_definitions()
-        # Check if the definition already exists in the NeoDefinition model
-        if is_any_node_present(NeoDefinition, definition=definition):
-            raise forms.ValidationError(f"A definition of '{definition}' already exists.")
+    #     get_terms_with_multiple_definitions()
+    #     # Check if the definition already exists in the NeoDefinition model
+    #     if is_any_node_present(NeoDefinition, definition=definition):
+    #         raise forms.ValidationError(f"A definition of '{definition}' already exists.")
         
-        return definition  # Return the cleaned value
+    #     return definition  # Return the cleaned value
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
@@ -200,11 +200,13 @@ class NeoTermAdmin(admin.ModelAdmin):
     change_list_template = 'admin/neoterm_change_list.html'
     actions = ['export_as_json', 'export_as_xml', 'upload_csv']
 
-    REQUIRED_COLUMNS = [
-        field.name.replace("_", " ").title() for field in NeoTerm._meta.get_fields()
-        if hasattr(field, 'required') and field.required
-    ]
+    # REQUIRED_COLUMNS = [
+    #     field.name.replace("_", " ").title() for field in NeoTerm._meta.get_fields()
+    #     if hasattr(field, 'required') and field.required
+    # ]
 
+    REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
+    
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [

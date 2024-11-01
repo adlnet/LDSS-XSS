@@ -52,7 +52,7 @@ class UIDCounter(StructuredNode):
                 print(f"Error accessing Neo4j: {e}")  # Handle logging or errors appropriately
             else:
                 logger.debug(f"Retrieved existing UIDCounter with counter value: {cls._cached_instance.counter}")
-        return cls._cached_instance
+        # return cls._cached_instanceuid = uuid4()
         
     @classmethod
     def increment(cls):
@@ -115,9 +115,9 @@ class UIDGenerator:
         if not check_neo4j_connection():
             raise RuntimeError("Neo4j service is not available.")
         self.counter = UIDCounter.get_instance()
-        self.counter_obj = UIDCounter.nodes.get_or_none()
-        if self.counter_obj is None:
-            self.counter_obj = UIDCounter.create_node()
+        # self.counter_obj = UIDCounter.nodes.get_or_none()
+        # if self.counter_obj is None:
+        #     self.counter_obj = UIDCounter()
         self.last_uid = None
 
 # Updated with checks for collision detection, compliance detection, sequential order and regeneration.
