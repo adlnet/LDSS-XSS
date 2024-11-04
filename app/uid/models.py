@@ -4,6 +4,7 @@ from datetime import datetime
 import time, logging, re # Import time module to use sleep, Logging and re
 from django_neomodel import DjangoNode
 from collections import defaultdict
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -359,3 +360,16 @@ def report_uid_collisions():
     # Find collisions (where length > 1)
     collisions = {key: value for key, value in uid_dict.items() if len(value) > 1}
     return collisions
+
+def view_logs():
+    """Read and return all logs from the log file."""
+    log_file_path = Path(__file__).resolve().parent / 'logs' / 'django_debug.log'  # Current path
+    log_file_path.parent.mkdir(exist_ok=True)
+
+    if log_file_path.exists():
+        with open(log_file_path, 'r') as log_file:
+            log_content = log_file.readlines()
+        return log_content
+    else:
+        logger.warning("Log file does not exist.")
+        return ["No log file found."]

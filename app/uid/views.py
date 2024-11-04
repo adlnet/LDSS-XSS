@@ -5,10 +5,14 @@ import json, logging
 from neomodel import db
 from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
 from .forms import ProviderForm, LCVTermForm
-from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog
+from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog, view_logs
 from rest_framework import viewsets
 from rest_framework.response import Response
+from typing import List
+from pathlib import Path
 
+log_file_path = Path(__file__).resolve().parent / 'logs' / 'django_debug.log'
+log_file_path.parent.mkdir(exist_ok=True)
 
 # Set up logging to capture errors and important information
 logger = logging.getLogger(__name__)
@@ -160,3 +164,34 @@ def export_to_postman(request, uid):
                 return JsonResponse({'error': 'UID not found'}, status=404)
 
     return JsonResponse(data)
+
+# Displaying Logs
+#def view_logs(request):
+ #   """Render a page that displays the logs."""
+  #  log_content: List[str] 
+   # if log_file_path.exists():
+    #    with open(log_file_path, 'r') as log_file:
+     #       log_content = log_file.readlines()
+    #else:
+    #    log_content = ["No log file found."]
+    #return render(request, 'view_logs.html', {'log_content': log_content})
+
+def view_logs():
+    """Read and return all logs from the log file."""
+    log_file_path = Path(__file__).resolve().parent / 'logs' / 'django_debug.log'
+    log_file_path.parent.mkdir(exist_ok=True)
+
+    if log_file_path.exists():
+        with open(log_file_path, 'r') as log_file:
+            log_content = log_file.readlines()
+        return log_content
+    else:
+        logger.warning("Log file does not exist.")
+        log_content = ["No log file found."]
+        return ["No log file found."]
+        #return render(request, 'view_logs.html', {'logs': log_content})
+    
+def logs_view(request):
+    """View to display log entries."""
+    log_entries = view_logs()  # Call the function to get log entries
+    return render(request, 'view_logs.html', {'log_entries': log_entries})

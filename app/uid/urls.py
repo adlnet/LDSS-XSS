@@ -15,4 +15,6 @@ urlpatterns = [
     path('report/<str:echelon_level>/', generate_report, name='generate_report'),
     path('api/uid-repo/', UIDRepoViewSet.as_view({'get': 'list'}), name='uid-repo'),
     path('home/', views.home, name='home'),
+    #path('view-logs/', views.view_logs, name='view_logs'),
+    path('logs/', views.logs_view, name='logs_view'),
 ]
