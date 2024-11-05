@@ -19,7 +19,7 @@ from django import forms
 from uuid import uuid4
 import logging
 
-from .views import export_terms_as_json, export_terms_as_xml
+from .views import export_terms_as_json, export_terms_as_xml, export_terms_as_csv
 
 import pandas as pd
 
@@ -140,7 +140,7 @@ class TermAdmin(admin.ModelAdmin):
         return form
 
 class NeoTermAdminForm(forms.ModelForm):
-    alias = forms.CharField(required=True, help_text="Enter alias")  # Custom field
+    alias = forms.CharField(required=False, help_text="Enter alias")  # Custom field
     definition = forms.CharField(required=True, help_text="Enter definition")  # Custom field
     context = forms.CharField(required=True, help_text="Enter context")  # Custom field
     context_description = forms.CharField(required=True, help_text="Enter context description")  # Custom field
@@ -177,8 +177,9 @@ class NeoTermAdmin(admin.ModelAdmin):
             definition = form.cleaned_data['definition']
             context = form.cleaned_data['context']
             context_description = form.cleaned_data['context_description']
+            logger.info(f"Creating NeoTerm with alias: {alias}, definition: {definition}, context: {context}, context_description: {context_description}")
 
-            run_node_creation(alias, definition, context, context_description)
+            run_node_creation(alias=alias, definition=definition, context=context, context_description=context_description)
 
             messages.success(request, 'NeoTerm saved successfully.')
             
@@ -205,14 +206,15 @@ class NeoTermAdmin(admin.ModelAdmin):
     #     if hasattr(field, 'required') and field.required
     # ]
 
-    REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
+    REQUIRED_COLUMNS = ['Definition', 'Context', 'Context Description']
     
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
             path('upload-csv/', self.upload_csv),
             path('admin/export-terms-json/', export_terms_as_json, name='export_terms_as_json'),
-            path('admin/export-terms-xml/', export_terms_as_xml, name='export_terms_as_xml')
+            path('admin/export-terms-xml/', export_terms_as_xml, name='export_terms_as_xml'),
+            path('admin/export-terms-csv/', export_terms_as_csv, name='export_terms_as_csv')
         ]
         return my_urls + urls
     
@@ -225,7 +227,8 @@ class NeoTermAdmin(admin.ModelAdmin):
                 csv_file = form.cleaned_data['csv_file']
                 try:
                     data = self.validate_csv_file(csv_file)
-                    self.create_terms_from_csv(data['data_frame'])
+                    df = data['data_frame']
+                    self.create_terms_from_csv(df)
                     messages.success(request, 'CSV file uploaded successfully.')
                     return HttpResponseRedirect(reverse('admin:core_neoterm_changelist'))
 
@@ -247,7 +250,6 @@ class NeoTermAdmin(admin.ModelAdmin):
     def validate_csv_file(self, csv_file):
         if not csv_file.name.endswith('.csv'):
             raise ValueError('The file extension is not .csv')
-
         try:
             logger.info('Validating CSV file...')
             df = pd.read_csv(csv_file)
@@ -289,9 +291,8 @@ class NeoTermAdmin(admin.ModelAdmin):
 
         for index, row in df.iterrows():
             try:
-                logger.info(f"This is the term for index {index}: {row['Term']}")
-
-                run_node_creation(alias=row['Term'], definition=row['Definition'], context=row['Context'], context_description=row['Context Description'])
+                alias_value = row['Alias'] if pd.notna(row['Alias']) and row['Alias'] else None
+                run_node_creation(alias=alias_value, definition=row['Definition'], context=row['Context'], context_description=row['Context Description'])
             except Exception as e:
                 logger.error(f'Error creating term for index {index}: {str(e)}')
                 raise TermCreationError(f'Failed to create term for row {index + 1}: {str(e)}')

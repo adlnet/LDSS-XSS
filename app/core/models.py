@@ -446,11 +446,32 @@ class NeoTerm(DjangoNode):
 
     class Meta:
         app_label = 'core'
+    
+    @classmethod
+    def get_or_create(cls, uid: str):
+        try:
+            term_node = cls.nodes.get_or_none(uid=uid)
+            if term_node:
+                return term_node, False
+            term_node = NeoTerm(uid=uid)
+            term_node.save()
+            return term_node, True
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while getting or creating term '{uid}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error in get_or_create for term '{uid}': {e}")
+            raise e
 
-    def set_relationships(self, alias_node, definition_node, context_node):
-        self.alias.connect(alias_node)
-        self.context.connect(context_node)
-        self.definition.connect(definition_node)
+    def set_relationships(self, definition_node, context_node, alias_node):
+        try:
+            if alias_node:
+                self.alias.connect(alias_node)
+            self.context.connect(context_node)
+            self.definition.connect(definition_node)
+        except exceptions.NeomodelException as e:
+            logger.error(f"NeoModel-related error while connecting relationships for term '{self.uid}': {e}")
+            raise e
 
 # @abstract
 # class NeoGeneric(DjangoNode):
@@ -536,8 +557,10 @@ class NeoContext(DjangoNode):
     def set_relationships(self, term_node, alias_node, definition_node, context_description_node):
         try:
             self.term.connect(term_node)
-            self.alias.connect(alias_node)
+            if alias_node:
+                self.alias.connect(alias_node)
             self.definition.connect(definition_node)
+            logger.info(f"Connecting context_description_node: {context_description_node}")
             self.context_description.connect(context_description_node)
         except exceptions.NeomodelException as e:
             logger.error(f"NeoModel-related error while connecting relationships for context '{self.context}': {e}")
@@ -556,12 +579,11 @@ class NeoContextDescription(DjangoNode):
         app_label = 'core'
 
     @classmethod
-    def get_or_create(cls, context_description: str):
+    def get_or_create(cls, context_description: str, context_node: NeoContext):
         try:
-            context_description_node = cls.nodes.get_or_none(context_description=context_description)
-            if context_description_node:
-                logger.info(f"NeoContextDescription found with context_description '{context_description}'")
-                return context_description_node, False
+            existing_context_description = context_node.context_description.all()
+            if existing_context_description:
+                return existing_context_description[0], False
             
             context_description_node = NeoContextDescription(context_description=context_description)
             context_description_node.save()
@@ -598,9 +620,14 @@ class NeoDefinition(DjangoNode):
         app_label = 'core'
 
     @classmethod
-    def get(cls, definition:str):
+    def get_or_create(cls, definition:str, definition_embedding=None):
         try:
-            return cls.nodes.get_or_none(definition=definition)
+            definition_node = cls.nodes.get_or_none(definition=definition)
+            if definition_node:
+                return definition_node, False
+            definition_node = NeoDefinition(definition=definition, embedding=definition_embedding)
+            definition_node.save()
+            return definition_node, True
         
         except Exception as e:
             logger.error(f"Error in get for NeoDefinition '{definition}': {e}")

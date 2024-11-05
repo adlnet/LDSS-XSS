@@ -8,6 +8,60 @@ import logging
 
 logger = logging.getLogger('dict_config_logger')
 
+def export_terms_as_csv(request):
+    try:
+        neoterm_nodes = NeoTerm.nodes.all()
+        if not neoterm_nodes:
+            messages.error(request, "There is no data to export.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        
+        data = []
+        
+        for neoterm in neoterm_nodes:
+            term = {}
+            term['uid'] = neoterm.uid
+
+            aliases = neoterm.alias.all() 
+            term['aliases'] = ', '.join([alias.alias for alias in aliases])
+
+            definitions = neoterm.definition.all()
+            if definitions:
+                term['definition'] = definitions[0].definition
+
+            contexts = neoterm.context.all()
+            term['contexts'] = []
+
+            for context in contexts:
+                context_info = {
+                    'context': context.context 
+                }
+
+                context_description_nodes = context.context_description.all()
+                if context_description_nodes:
+                    context_info['context_description'] = context_description_nodes[0].context_description
+                
+                term['contexts'].append(context_info)
+
+            logger.info(term)
+
+            data.append(term)
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="terms.csv"'
+
+        header = ','.join(data[0].keys())
+        response.write(header + '\n')
+
+        for term in data:
+            row = ','.join([str(value) for value in term.values()])
+            response.write(row + '\n')
+
+        return response
+    except Exception as e:
+        logger.error(f'Error exporting terms as CSV: {e}')
+        messages.error(request, f'Error exporting terms as CSV: {e}')
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+
 def export_terms_as_json(request):
     try:
         neoterm_nodes = NeoTerm.nodes.all()
