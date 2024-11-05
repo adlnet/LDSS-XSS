@@ -174,7 +174,7 @@ def generate_uid(owner_uid) -> str:
         
         # Collision threshold, if too many attempts, break, reset attempts and increment base counter
         if attempts >= COLLISION_THRESHOLD:
-            logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
+            logger.error(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
             # counter.increment()
             attempts = 0
             break
@@ -183,7 +183,7 @@ def generate_uid(owner_uid) -> str:
     
         # Compliance check
         if not is_uid_compliant(new_uid):
-            logger.warning(f"Generated UID {new_uid} is not compliant with the expected pattern.")
+            logger.error(f"Generated UID {new_uid} is not compliant with the expected pattern.")
             continue
         
         # # Sequential order check, if not sequential force increment and regenerate UID
@@ -232,14 +232,10 @@ class Provider(DjangoNode):
     @classmethod
     def create_provider(cls, name) -> 'Provider':
         
-        owner_uid = generate_uid(GLOBAL_PROVIDER_OWNER_UID)
-        uid_node = UIDNode.create_node(
-            owner_uid=owner_uid
-        )
+        uid_node = UIDNode.create_node(owner_uid=GLOBAL_PROVIDER_OWNER_UID)
+        counter_node = UIDCounter._get_instance(owner_uid=uid_node.uid)
 
-        counter_node = UIDCounter._get_instance(owner_uid=owner_uid)
-
-        provider = Provider(name=name, default_uid=owner_uid)
+        provider = Provider(name=name, default_uid=uid_node.uid)
         provider.save()
         provider.uid.connect(uid_node)
         provider.uid_counter.connect(counter_node)
@@ -309,14 +305,13 @@ class LCVTerm(DjangoNode):
         provider = Provider.get_provider_by_name(provider_name)
         assert isinstance(provider, Provider)
                 
-        owner_uid = generate_uid(provider.default_uid)
         uid_node = UIDNode.create_node(
-            owner_uid=owner_uid
+            owner_uid=provider.default_uid
         )
 
         lcv_term = LCVTerm(term=term, echelon_level=echelon_level, ld_lcv_structure=structure)
         lcv_term.default_uid = uid_node.uid
-        lcv_term.default_uid_chain = f"{owner_uid}-{uid_node.uid}" 
+        lcv_term.default_uid_chain = f"{provider.default_uid}-{uid_node.uid}" 
         lcv_term.save()
         lcv_term.uid.connect(uid_node)
         lcv_term.provider.connect(provider)
