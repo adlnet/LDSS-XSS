@@ -8,27 +8,32 @@ from .models import Provider, LCVTerm  # Import Neo4j models directly
    #     fields = ['uid']
 
 class ProviderForm(forms.ModelForm):
-    uid = forms.CharField(max_length=255)
+    # uid = forms.CharField(max_length=255)
     name = forms.CharField(max_length=255)
 
     def save(self):
-        provider = Provider(uid=self.cleaned_data['uid'], name=self.cleaned_data['name'])
+        name = self.cleaned_data['name']
+        provider = Provider.create_provider(name)
         provider.save()
         return provider
+
     class Meta:
         model = Provider
         #fields = ['uid', 'name', 'echelon_level']
-        fields = ['name', 'echelon_level'] # UID is self generated
+        fields = ['name'] # UID is self generated
 
 class LCVTermForm(forms.ModelForm):
-    uid = forms.CharField(max_length=255)
+    provider_name = forms.CharField(max_length=255)
     term = forms.CharField(max_length=255)
+    echelon = forms.CharField(max_length=255)
+    structure = forms.CharField(max_length=255)
 
     def save(self):
-        lcv_term = LCVTerm(uid=self.cleaned_data['uid'], term=self.cleaned_data['term'])
+        payload = self.cleaned_data
+        lcv_term = LCVTerm.create_term(provider_name=payload["provider_name"], term=payload['term'], echelon_level=payload["echelon"], structure=payload["structure"])
         lcv_term.save()
         return lcv_term
     class Meta:
         model = LCVTerm
         #fields = ['uid', 'term', 'echelon_level']
-        fields = ['term', 'echelon_level'] # UID is self Generated
+        fields = ['provider_name', 'term', 'echelon', 'structure'] # UID is self Generated

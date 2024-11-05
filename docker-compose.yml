@@ -24,7 +24,7 @@ services:
     networks:
       - openlxp
   app:
-    container_name: openlxp-xss
+    container_name: app
     build:
       context: .
     ports:

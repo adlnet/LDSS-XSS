@@ -3,8 +3,9 @@ from django.http import HttpResponse, HttpRequest, JsonResponse
 #from uuid import uuid5, NAMESPACE_URL
 import json, logging
 from neomodel import db
-from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
-from .forms import ProviderForm, LCVTermForm
+# from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
+from .models import UIDNode, Provider, generate_uid
+from .forms import ProviderForm
 from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -13,13 +14,13 @@ from rest_framework.response import Response
 # Set up logging to capture errors and important information
 logger = logging.getLogger(__name__)
 
-# Attempt to initialize the UID generator
-try:
-    uid_generator = UIDGenerator()
-except RuntimeError as e:
-    # Log an error if UIDGenerator fails to initialize (e.g., due to Neo4j connection issues)
-    logger.error(f"Failed to initialize UIDGenerator: {e}")
-    uid_generator = None  # Handle initialization failure appropriately
+# # Attempt to initialize the UID generator
+# try:
+#     uid_generator = UIDGenerator()
+# except RuntimeError as e:
+#     # Log an error if UIDGenerator fails to initialize (e.g., due to Neo4j connection issues)
+#     logger.error(f"Failed to initialize UIDGenerator: {e}")
+#     uid_generator = None  # Handle initialization failure appropriately
 
 MAX_CHILDREN = 2**32 -1
 
@@ -27,36 +28,39 @@ MAX_CHILDREN = 2**32 -1
 def generate_uid_node(request: HttpRequest):
     request_body = json.loads(request.body)
     print(request_body)
-    strict_parent_validation = request_body.get('strict_parent_validation', False)
+    # strict_parent_validation = request_body.get('strict_parent_validation', False)
     parent_uid = request_body.get('parent_uid', None)
-    namespace = request_body.get('namespace', 'LCV') #??? Ask Hunter about where namespace is actually configured and is it different than just organization?
-    echelon_level = request_body.get('echelon_level', 'level_1')  # Get echelon level from request
+    # namespace = request_body.get('namespace', 'LCV') #??? Ask Hunter about where namespace is actually configured and is it different than just organization?
+    # echelon_level = request_body.get('echelon_level', 'level_1')  # Get echelon level from request
+    # parent_node = UIDNode.get_node_by_uid(parent_uid, namespace, echelon_level='parent_level') #added namespace and parent level
+
+    # if parent_node is None:
+    #     if strict_parent_validation:
+    #         return HttpResponse("{ 'error': 'Parent node not found' }", status=404, content_type='application/json')
+    #     else:
+    #         parent_node = UIDNode.create_node(uid = parent_uid, namespace = namespace)
     
-    parent_node = UIDNode.get_node_by_uid(parent_uid, namespace, echelon_level='parent_level') #added namespace and parent level
+    # num_children = parent_node.children.count()
 
-    if parent_node is None:
-        if strict_parent_validation:
-            return HttpResponse("{ 'error': 'Parent node not found' }", status=404, content_type='application/json')
-        else:
-            parent_node = UIDNode.create_node(uid = parent_uid, namespace = namespace)
+    # # Count children using a loop
+    # num_children = 0
+    # for child in parent_node.children:
+    #    num_children += 1
+
+    # if num_children > MAX_CHILDREN:
+    #     return HttpResponse("{ 'error': 'Max children exceeded for {parent_uid}' }", status=400, content_type='application/json')
     
-    num_children = parent_node.children.count()
+    # local_uid = uid_generator.generate_uid() # updated to use new UID Generation method
+    # local_uid = generate_uid("__ORPHAN_UID_PARENT__")
 
-    # Count children using a loop
-    num_children = 0
-    for child in parent_node.children:
-       num_children += 1
-
-    if num_children > MAX_CHILDREN:
-        return HttpResponse("{ 'error': 'Max children exceeded for {parent_uid}' }", status=400, content_type='application/json')
-    local_uid = uid_generator.generate_uid() # updated to use new UID Generation method
     #local_uid = CounterNode.increment().counter
 
-    new_child_node = UIDNode.create_node(uid = local_uid, namespace = namespace, echelon_level=echelon_level)
+    # new_child_node = UIDNode.create_node(uid = local_uid, namespace = namespace, echelon_level=echelon_level)
+    new_child_node = UIDNode.create_node(parent_uid)
 
-    parent_node.children.connect(new_child_node)
+    # parent_node.children.connect(new_child_node)
 
-    return HttpResponse("{ 'uid': '" + str(local_uid) + "' }", content_type='application/json')
+    return HttpResponse("{ 'uid': '" + str(new_child_node.uid) + "' }", content_type='application/json')
 
 #Potential code to retrieve parent and child nodes using the upstream and downstream capabilities
 #def get_upstream_providers(request, uid):
@@ -83,24 +87,24 @@ def create_provider(request):
         form = ProviderForm(request.POST)
         if form.is_valid():
             provider = form.save()
-            provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
+            # provider.uid = uid_generator.generate_uid()  # Ensure UID is generated
             provider.save()
             return redirect('uid:success')
     else:
         form = ProviderForm()
     return render(request, 'create_provider.html', {'form': form})
 
-def create_lcvterm(request):
-    if request.method == 'POST':
-        form = LCVTermForm(request.POST)
-        if form.is_valid():
-            lcvterm = form.save()
-            lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
-            lcvterm.save()
-            return redirect('uid:success')
-    else:
-        form = LCVTermForm()
-    return render(request, 'create_lcvterm.html', {'form': form})
+# def create_lcvterm(request):
+#     if request.method == 'POST':
+#         form = LCVTermForm(request.POST)
+#         if form.is_valid():
+#             lcvterm = form.save()
+#             lcvterm.uid = uid_generator.generate_uid()  # Ensure UID is generated
+#             lcvterm.save()
+#             return redirect('uid:success')
+#     else:
+#         form = LCVTermForm()
+#     return render(request, 'create_lcvterm.html', {'form': form})
 
 def success_view(request):
     return render(request, 'success.html', {'message': 'Operation completed successfully!'})

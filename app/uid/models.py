@@ -1,5 +1,5 @@
 from django.db import models, transaction #Import Models and transaction atomic
-from neomodel import db, StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty
+from neomodel import db, StringProperty, DateTimeProperty, BooleanProperty, RelationshipTo, RelationshipFrom, StructuredNode, IntegerProperty, NodeSet
 from datetime import datetime
 import time, logging, re # Import time module to use sleep, Logging and re
 from django_neomodel import DjangoNode
@@ -22,8 +22,8 @@ def check_neo4j_connection():
 
 # Generated Logs to track instance, time of generation, uid, provider and lcv terms
 class GeneratedUIDLog(models.Model):
-    uid = models.CharField(max_length=255, unique=True)
-    uid_full = models.CharField(max_length=255, unique=True)
+    uid = models.CharField(max_length=255, default="UNKNOWN")
+    uid_full = models.CharField(max_length=255, default="UNKNOWN")
     generated_at = models.DateTimeField(auto_now_add=True)
     generator_id = models.CharField(max_length=255)
     provider = models.CharField(max_length=255, null=True)
@@ -33,7 +33,6 @@ class GeneratedUIDLog(models.Model):
         verbose_name = "Generated UID Log"
         verbose_name_plural = "Generated UID Logs"
 
-
 class UIDCounter(StructuredNode):
     owner_uid = StringProperty(required=True)
     counter = IntegerProperty(default=0)
@@ -42,24 +41,35 @@ class UIDCounter(StructuredNode):
     _cache = {}
 
     @classmethod
-    def get_instance(cls, owner_uid: str):
+    def _get_instance(cls, owner_uid: str) -> 'UIDCounter':
         if owner_uid in cls._cache:
             return cls._cache[owner_uid]
     
-        try:
-            instances = cls.get_or_create(owner_uid=owner_uid)
-            if len(instances) > 1:
-                logger.debug(f"ERROR: Retrieved MULTIPLE existing UIDCounter with counter values: {[instance.counter for instance in instances]}")
-            
-            return instances[0]
+        # try:
+        # instances = cls.get_or_create(owner_uid=owner_uid)
+        nodes = UIDCounter.nodes
+        assert isinstance(nodes, NodeSet)
+        result = nodes.get_or_none(owner_uid=owner_uid)
 
-        except Exception as e:
-            print(f"Error accessing Neo4j: {e}")  # Handle logging or errors appropriately
+        if result is None:
+            instance = UIDCounter(owner_uid=owner_uid)
+            instance.save()
+            cls._cache[owner_uid] = instance
+            return instance
         
+        if isinstance(result, list):
+            instance = result[0]
+        else:
+            instance = result
+        
+        assert isinstance(instance, UIDCounter)
+        cls._cache[owner_uid] = instance
+        return instance
+
     @classmethod
     def increment(cls, owner_uid: str):
         with transaction.atomic():  # Ensure atomic operation
-            instance = cls.get_instance(owner_uid)
+            instance = cls._get_instance(owner_uid)
             current_value = instance.counter
             instance.counter = current_value + 1
             instance.save()
@@ -109,22 +119,22 @@ def report_malformed_uids():
 
 # Neo4j UID Node
 class UIDNode(DjangoNode):
-    uid = StringProperty(required=True, default="")
+    uid = StringProperty(required=True)
     # namespace = StringProperty(required=True)
     updated_at = DateTimeProperty(default_now=True)
     created_at = DateTimeProperty(default_now=True)
 
     children = RelationshipTo('UIDNode', 'HAS_CHILD')
-    lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
+    # lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
     provider = RelationshipTo('Provider', 'HAS_PROVIDER')
 
     @classmethod
-    def get_node_by_uid(cls, uid: str, namespace: str):
+    def get_node_by_uid(cls, uid: str):
         # return cls.nodes.get_or_none(uid=uid, namespace=namespace)
         return cls.nodes.get_or_none(uid=uid)
     
     @classmethod
-    def create_node(cls, uid, namespace) -> 'UIDNode':
+    def create_node(cls, owner_uid: str) -> 'UIDNode':
         # # Find existing Node
         # existing_node = cls.get_node_by_uid(uid=None, namespace=namespace)  # Adjust the filter as needed
         # if existing_node:
@@ -132,7 +142,8 @@ class UIDNode(DjangoNode):
         #     return existing_node  # Return the existing node if found
         
         # uid_node = cls(uid=uid, namespace=namespace)
-        uid_node = cls(uid=uid)
+        uid_value = generate_uid(owner_uid)
+        uid_node = cls(uid=uid_value)
         uid_node.save()
         return uid_node
     
@@ -143,27 +154,26 @@ class UIDNode(DjangoNode):
 # Refactored UID Generator that manages both Neo4j and DjangoNode and confirms Neo4j is available
 def generate_uid(owner_uid) -> str:
 
-    counter = UIDCounter.get_instance(owner_uid)
-    uid_value = counter.increment()
+    uid_value = UIDCounter.increment(owner_uid=owner_uid)
     attempts = 0 # Initialize attempts here change as needed
     
     while True:
         new_uid = f"0x{uid_value:08x}"
         
-        # Collision check
-        while len(UIDNode.nodes.filter(uid=new_uid, owner_uid=owner_uid)) > 0:
-            logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
-            attempts += 1
+        # # Collision check
+        # while len(UIDNode.nodes.filter(uid=new_uid, owner_uid=owner_uid)) > 0:
+        #     logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
+        #     attempts += 1
 
-            # Adjust the UID by incrementing the base value directly to resolve the collision until a unique UID is found
-            uid_value += 1
-            new_uid = f"0x{uid_value:08x}"
-            logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
+        #     # Adjust the UID by incrementing the base value directly to resolve the collision until a unique UID is found
+        #     uid_value += 1
+        #     new_uid = f"0x{uid_value:08x}"
+        #     logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
         
         # Collision threshold, if too many attempts, break, reset attempts and increment base counter
         if attempts >= COLLISION_THRESHOLD:
             logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
-            counter.increment()
+            # counter.increment()
             attempts = 0
             break
         
@@ -208,61 +218,114 @@ def generate_uid(owner_uid) -> str:
 class Provider(DjangoNode):
     # uid = StringProperty(unique_index=True)
     name = StringProperty(required=True)
+    default_uid = StringProperty(required=True)
+
     uid = RelationshipTo('UIDNode', 'HAS_UID')
+    uid_counter = RelationshipTo('UIDCounter', 'HAS_UID_COUNTER')
     # lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
 
     class Meta:
         app_label = 'uid'
 
+    @classmethod
+    def create_provider(cls, name) -> 'Provider':
+        
+        owner_uid = generate_uid("__PROVIDER_UID_COUNTER__")
+        uid_node = UIDNode.create_node(
+            owner_uid=owner_uid
+        )
+
+        counter_node = UIDCounter._get_instance(owner_uid=owner_uid)
+
+        provider = Provider(name=name, default_uid=owner_uid)
+        provider.save()
+        provider.uid.connect(uid_node)
+        provider.uid_counter.connect(counter_node)
+        provider.save()
+
+        return provider
+    
+    @classmethod
+    def get_provider_by_name(cls, name):
+        provider_nodes = Provider.nodes
+        assert isinstance(provider_nodes, NodeSet)
+        result = provider_nodes.get_or_none(name=name)
+
+        if result is None:
+            raise Exception(f"CANNOT FIND REQUESTED PROVIDER: {name}")
+
+        provider = result
+        if isinstance(provider, list):
+            provider = result[0]
+
+        assert isinstance(provider, Provider)
+        return provider
+
 # Django Provider Model for Admin
 class ProviderDjangoModel(models.Model):
     # uid = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
+    # default_uid = StringProperty(required=True)
 
     def save(self, *args, **kwargs):
         # Create or update the Neo4j Provider node
-        # provider = Provider(uid=self.uid, name=self.name)
-
-        uid_value = generate_uid("__PROVIDER_UID_COUNTER__")
-        uid_node = UIDNode.create_node(
-            uid=uid_value,
-            namespace="UNASSIGNED"
-        )
-
-        provider = Provider(name=self.name)
-        provider.uid.connect(uid_node)
-        provider.save()
+        provider = Provider.create_provider(self.name)
         super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Provider"
         verbose_name_plural = "Providers"
 
-# # LCV Terms model for DjangoNode
-# class LCVTerm(DjangoNode):
-#     # uid = StringProperty(default=lambda: uid_singleton.generate_uid(), unique_index=True)
-#     term = StringProperty(required=True)
-#     ld_lcv_structure = StringProperty()
-#     echelon_level = StringProperty(required=True)  # Required for echelon check
-#     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+# LCV Terms model for DjangoNode
+class LCVTerm(DjangoNode):
+    default_uid = StringProperty(required=True)
+    term = StringProperty(required=True)
+    ld_lcv_structure = StringProperty()
+    echelon_level = StringProperty(required=True)  # Required for echelon check
 
-#     class Meta:
-#         app_label = 'uid'
+    uid = RelationshipTo('UIDNode', 'HAS_UID')
+    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
-# # Django LCVTerm Model for Admin
-# class LCVTermDjangoModel(models.Model):
-#     uid = models.CharField(max_length=255, unique=True)
-#     term = models.CharField(max_length=255)
+    class Meta:
+        app_label = 'uid'
 
-#     def save(self, *args, **kwargs):
-#         # Create or update the Neo4j LCVTerm node
-#         lcv_term = LCVTerm(uid=self.uid, term=self.term)
-#         lcv_term.save()
-#         super().save(*args, **kwargs)
+    @classmethod
+    def create_term(cls, provider_name: str, term: str, structure: str, echelon_level: str):
+        
+        provider = Provider.get_provider_by_name(provider_name)
+        assert isinstance(provider, Provider)
+                
+        owner_uid = generate_uid(provider.default_uid)
+        uid_node = UIDNode.create_node(
+            owner_uid=owner_uid
+        )
 
-#     class Meta:
-#         verbose_name = "LCV Term"
-#         verbose_name_plural = "LCV Terms"
+        lcv_term = LCVTerm(term=term, echelon_level=echelon_level, ld_lcv_structure=structure)
+        lcv_term.default_uid = uid_node.uid
+        lcv_term.save()
+        lcv_term.uid.connect(uid_node)
+        lcv_term.provider.connect(provider)
+        lcv_term.save()
+        
+        return lcv_term
+
+# Django LCVTerm Model for Admin
+class LCVTermDjangoModel(models.Model):
+    # uid = models.CharField(max_length=255, unique=True)
+    provider_name = models.CharField(max_length=255)
+    term = models.CharField(max_length=255)
+    echelon = models.CharField(max_length=255)
+    structure = models.CharField(max_length=255)
+
+    def save(self, *args, **kwargs):
+        # Create or update the Neo4j LCVTerm node
+        lcv_term = LCVTerm.create_term(provider_name=self.provider_name, term=self.term, echelon_level=self.echelon, structure=self.structure)
+        lcv_term.save()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "LCV Term"
+        verbose_name_plural = "LCV Terms"
 
 # # LanguageSet now a Node
 # class LanguageSet(StructuredNode):
@@ -279,7 +342,9 @@ class ProviderDjangoModel(models.Model):
 # Adding reporting by echelon level
 def report_uids_by_echelon(echelon_level):
     """Retrieve UIDs issued at a specific echelon level."""
-    nodes = UIDNode.nodes.filter(echelon_level=echelon_level)
+    nodes = UIDNode.nodes
+    assert isinstance(nodes, NodeSet)
+    nodes = nodes.filter(echelon_level=echelon_level)
     return [node.uid for node in nodes]
 
 # def get_uid_generator(generator_id: str):
