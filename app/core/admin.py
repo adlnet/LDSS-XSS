@@ -161,7 +161,9 @@ class NeoTermAdminForm(forms.ModelForm):
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
-    list_display = ('lcvid', 'uid')
+    list_display = ('lcvid', 'uid', 'alias', 'definition', 'context')
+    list_per_page = 20
+    search_fields = ('uid', 'lcvid', 'alias', 'definition', 'context')
     exclude = ['django_id', 'uid']
 
     def __init__(self,*args, **kwargs):
@@ -295,6 +297,33 @@ class NeoTermAdmin(admin.ModelAdmin):
                 raise TermCreationError(f'Failed to create term for row {index + 1}: {str(e)}')
 
         logger.info(f'{len(df)} terms created from CSV file.')
+
+    def alias(self, obj):
+        """Get the alias for display in list_display"""
+        try:
+            # Get the first alias connected to this term
+            alias_rel = obj.alias.all()
+            return alias_rel[0].alias if alias_rel else ''
+        except Exception:
+            return ''
+
+    def definition(self, obj):
+        """Get the definition for display in list_display"""
+        try:
+            # Get the first definition connected to this term
+            def_rel = obj.definition.all()
+            return def_rel[0].definition if def_rel else ''
+        except Exception:
+            return ''
+
+    def context(self, obj):
+        """Get the context for display in list_display"""
+        try:
+            # Get the first context connected to this term
+            context_rel = obj.context.all()
+            return context_rel[0].context if context_rel else ''
+        except Exception:
+            return ''
 
 neomodel_admin.register(NeoTerm, NeoTermAdmin)
 

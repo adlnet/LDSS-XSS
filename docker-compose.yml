@@ -19,7 +19,19 @@ services:
       - '7687:7687'
       - '7474:7474'
     environment:
-      NEO4J_AUTH: neo4j/password
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_PLUGINS=["graph-data-science", "apoc"]  
+      - NEO4J_dbms_security_procedures_allowlist=gds.*,apoc.* 
+      - NEO4J_dbms_security_procedures_unrestricted=gds.*,apoc.*
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - TINI_SUBREAPER=true  # Add this to fix the Tini warning
+    volumes:
+      - ./neo4j/data:/data
+      - ./neo4j/logs:/logs
+      - ./neo4j/import:/var/lib/neo4j/import
+    entrypoint: ["/bin/bash", "-c", "mkdir -p /data/import && chmod 777 /data/import && /startup/docker-entrypoint.sh neo4j"]
     networks:
       - openlxp
   app:
