@@ -390,3 +390,102 @@ class ExportTermsView(APIView):
         
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+## Classes for connecting to external APIS.
+## Param - APIVIEW is a django rest framework class that helps with API, with built in methods like get, post, put, delete
+class SendTermsToExternalAPI(APIView):
+    
+    ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
+    permission_classes = [AllowAny]
+    
+    def post(self, request, *args, **kwargs):
+        # Extract the external API credentials and endpoint from the request (the endpoint to send the data)
+        api_url = request.data.get('url')  # URL to connect to
+        api_endpoint = request.data.get('endpoint')  # The specific API endpoint
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        # Check if the required parameters are provided
+        if not api_url or not api_endpoint:
+            return JsonResponse({'error': 'API URL and endpoint are required'}, status=400)
+        
+        # Fetch terms 
+        terms = NeoTerm.nodes.all()  
+        ## This is an example framework, I need to implement a search here, for the users query. So, maybe parse the post for what they want
+        ## then search and return it?
+        
+        terms_data = [
+            {
+                "term": term.term,
+                "definition": term.definition,
+                "context": term.context,
+                "context_description": term.context_description
+            }
+            for term in terms
+        ]
+        
+    
+        ## Also we will need to to send a success response for if there is no term but the request was successful. - MB
+        ## Maybe something like if terms_data is empty then response = {'message': 'No terms to send'}
+        if not terms_data:
+            data = {'message': 'No terms found to send'}
+        else:
+            # Convert the terms to JSON (or use CSV if needed)
+            # Sending JSON data to the external API
+            headers = {'Content-Type': 'application/json'}
+            data = {'terms': terms_data}
+        
+        # Authenticate (Basic Authentication or using credentials)
+        auth = (username, password)
+    
+        try:
+            # Send data to the external API via POST request
+            response = requests.post(f'{api_url}/{api_endpoint}', json=data, headers=headers, auth=auth)
+            
+            if response.status_code == 200:
+                return JsonResponse({'message': 'Terms sent successfully to external API'}, status=200)
+            else:
+                return JsonResponse({'error': f'Failed to send terms: {response.text}'}, status=response.status_code)
+        
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({'error': f'Error connecting to external API: {str(e)}'}, status=500)
+
+## Param - APIVIEW is a django rest framework class that helps with API, with built in methods like get, post, put, delete
+class ReceiveTermsFromExternalAPI(APIView):
+    ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
+    permission_classes = [AllowAny]
+    
+    def get(self, request, *args, **kwargs):
+        # Extract the external API credentials and endpoint from the request
+        api_url = request.query_params.get('url')  # URL to connect to
+        api_endpoint = request.query_params.get('endpoint')  # The specific API endpoint
+        username = request.query_params.get('username')
+        password = request.query_params.get('password')
+        
+        if not api_url or not api_endpoint:
+            return JsonResponse({'error': 'API URL and endpoint are required'}, status=400)
+
+        # Authentication (Basic Authentication or API Token)
+        auth = (username, password)
+        
+        try:
+            # Fetch terms from the external API via GET request
+            response = requests.get(f'{api_url}/{api_endpoint}', auth=auth)
+            
+            if response.status_code == 200:
+                terms_data = response.json()
+                
+                # Process the received terms 
+                # This example saves them to NeoTerm model, but we will need to adjust, for instance this might need to trigger an alert that a new term is present
+                for term in terms_data.get('terms', []):
+                    NeoTerm(term=term['term'], 
+                            definition=term['definition'],
+                            context=term['context'],
+                            context_description=term['context_description']).save()
+                
+                return JsonResponse({'message': 'Terms received and saved successfully'}, status=200)
+            else:
+                return JsonResponse({'error': f'Failed to receive terms: {response.text}'}, status=response.status_code)
+        
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({'error': f'Error connecting to external API: {str(e)}'}, status=500)

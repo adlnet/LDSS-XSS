@@ -2,6 +2,8 @@ import pandas as pd
 
 import xml.etree.ElementTree as ET
 from django.http import HttpResponse
+## To connect to DB
+from neo4j import GraphDatabase
 import logging
 
 logger = logging.getLogger('dict_config_logger')
@@ -75,3 +77,24 @@ def convert_to_xml(data):
     
     except Exception as e:
         return {'error': str(e)}
+    
+    ##Functions to connect to DB/API calls
+
+   ## class Neo4jConnection:
+  # Function to create a Neo4j driver, to initiate a connection to the database. The driver will create sessions and execute queries.
+  ## For testing this is probably going to have uri of bolt://localhost:7687? -MB
+def create_neo4j_driver(uri, user, password):
+    return GraphDatabase.driver(uri, auth=(user, password))
+
+# Function to run a query against Neo4j
+## Utilizes the driver object created above to run the query (passed in as argument) and return the results. The parameters is optional for dynamic query building (if none are
+## passed in, it will default to an empty dictionary). -MB
+def run_neo4j_query(driver, query, parameters=None):
+    with driver.session() as session:
+        result = session.run(query, parameters or {})
+        ## record.data converts each returned record to a dictionary format to be easier to work with
+        return [record.data() for record in result]
+
+# Function to close the Neo4j driver
+def close_neo4j_driver(driver):
+    driver.close()
