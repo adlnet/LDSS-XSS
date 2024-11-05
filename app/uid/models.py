@@ -4,9 +4,11 @@ from datetime import datetime
 import time, logging, re # Import time module to use sleep, Logging and re
 from django_neomodel import DjangoNode
 from collections import defaultdict
+from typing import List
 
 logger = logging.getLogger(__name__)
 
+GLOBAL_PROVIDER_OWNER_UID = "0xFFFFFFFF"
 UID_PATTERN = r"^0x[0-9A-Fa-f]{8}$"
 COLLISION_THRESHOLD = 5  # Number of attempts before adjusting the base counter
 
@@ -124,9 +126,9 @@ class UIDNode(DjangoNode):
     updated_at = DateTimeProperty(default_now=True)
     created_at = DateTimeProperty(default_now=True)
 
-    children = RelationshipTo('UIDNode', 'HAS_CHILD')
+    # children = RelationshipTo('UIDNode', 'HAS_CHILD')
     # lcv_terms = RelationshipTo('LCVTerm', 'HAS_LCV_TERM')
-    provider = RelationshipTo('Provider', 'HAS_PROVIDER')
+    # provider = RelationshipTo('Provider', 'HAS_PROVIDER')
 
     @classmethod
     def get_node_by_uid(cls, uid: str):
@@ -230,7 +232,7 @@ class Provider(DjangoNode):
     @classmethod
     def create_provider(cls, name) -> 'Provider':
         
-        owner_uid = generate_uid("__PROVIDER_UID_COUNTER__")
+        owner_uid = generate_uid(GLOBAL_PROVIDER_OWNER_UID)
         uid_node = UIDNode.create_node(
             owner_uid=owner_uid
         )
@@ -260,6 +262,16 @@ class Provider(DjangoNode):
 
         assert isinstance(provider, Provider)
         return provider
+    
+    def get_current_uid(self):
+        current_uid = self.default_uid
+
+        current_uid_node = self.uid.end_node()
+        if current_uid_node is not None:
+            assert isinstance(current_uid_node, UIDNode)
+            current_uid = current_uid_node.uid
+
+        return current_uid
 
 # Django Provider Model for Admin
 class ProviderDjangoModel(models.Model):
@@ -279,6 +291,8 @@ class ProviderDjangoModel(models.Model):
 # LCV Terms model for DjangoNode
 class LCVTerm(DjangoNode):
     default_uid = StringProperty(required=True)
+    default_uid_chain = StringProperty(default="")
+
     term = StringProperty(required=True)
     ld_lcv_structure = StringProperty()
     echelon_level = StringProperty(required=True)  # Required for echelon check
@@ -302,12 +316,28 @@ class LCVTerm(DjangoNode):
 
         lcv_term = LCVTerm(term=term, echelon_level=echelon_level, ld_lcv_structure=structure)
         lcv_term.default_uid = uid_node.uid
+        lcv_term.default_uid_chain = f"{owner_uid}-{uid_node.uid}" 
         lcv_term.save()
         lcv_term.uid.connect(uid_node)
         lcv_term.provider.connect(provider)
         lcv_term.save()
         
         return lcv_term
+    
+    def get_current_local_uid_chain(self):
+
+        current_uid = self.default_uid
+        current_uid_node = self.uid.end_node()
+        if self.uid.end_node() is not None:
+            current_uid = current_uid_node.uid
+        
+        current_provider_uid = ""
+        current_provider_node = self.provider.start_node()
+        if current_provider_node is None:
+            assert isinstance(current_provider_node, Provider)
+            current_provider_uid = current_provider_node.get_current_uid()
+        
+        return f"{current_provider_uid}-{current_uid}"
 
 # Django LCVTerm Model for Admin
 class LCVTermDjangoModel(models.Model):
@@ -347,40 +377,23 @@ def report_uids_by_echelon(echelon_level):
     nodes = nodes.filter(echelon_level=echelon_level)
     return [node.uid for node in nodes]
 
-# def get_uid_generator(generator_id: str):
-#     return UIDGenerator(generator_id=generator_id)
-
 def report_all_uids():
     """Retrieve all UIDs issued in the enterprise."""
     nodes = UIDNode.nodes.all()
     return [node.uid for node in nodes]
 
-# class LastGeneratedUID(StructuredNode):
-#     owner_uid = StringProperty(required=True)
-#     last_uid = StringProperty(required=True, default="")
-
-#     @classmethod
-#     def get_last_generated_uid(cls, owner_uid: str):
-#         """Retrieve the last generated UID from Neo4j."""
-#         record = cls.get_or_create(owner_uid=owner_uid)
-#         assert isinstance(record, cls)
-#         return record.last_uid
-
-#     @classmethod
-#     def save_last_generated_uid(cls, owner_uid: str, new_uid: str):
-#         """Save the last generated UID to Neo4j."""
-#         record = cls.get_or_create(owner_uid=owner_uid)
-#         if record:
-#             record.uid = new_uid
-#             record.save()
-#         else:
-#             cls(uid=new_uid).save()
-
 # Reporting function for all generated UIDs
 def report_all_generated_uids():
     """Retrieve all generated UIDs from the log."""
     logs = GeneratedUIDLog.objects.all()
-    return [(log.uid, log.generated_at, log.generator_id) for log in logs]
+    return [(log.uid, log.uid_full, log.generated_at, log.generator_id) for log in logs]
+
+def report_all_term_uids():
+    """
+    Query and return all UID chains from every known Term.
+    """
+    term_nodes = LCVTerm.nodes.all()
+    return [term.get_current_local_uid_chain() for term in term_nodes]
 
 # # Reporting all UID collision
 # def report_uid_collisions():

@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from .views import export_to_postman
 from .views import generate_report
-from .views import UIDRepoViewSet
+from .views import UIDRepoViewSet, UIDTermViewSet, UIDGeneratedViewSet
 
 app_name = 'uid'
 
@@ -14,4 +14,6 @@ urlpatterns = [
     path('export/<str:uid>/', export_to_postman, name='export_to_postman'),
     path('report/<str:echelon_level>/', generate_report, name='generate_report'),
     path('api/uid-repo/', UIDRepoViewSet.as_view({'get': 'list'}), name='uid-repo'),
+    path('api/uid/generated', UIDGeneratedViewSet.as_view({'get': 'list'}), name='uid-repo'),
+    path('api/uid/all', UIDTermViewSet.as_view({'get': 'list'}), name='uid-repo'),
 ]

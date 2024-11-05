@@ -6,7 +6,7 @@ from neomodel import db
 # from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
 from .models import UIDNode, Provider, generate_uid
 from .forms import ProviderForm
-from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog
+from .models import report_all_uids, report_all_generated_uids, report_all_term_uids, report_uids_by_echelon, GeneratedUIDLog
 from rest_framework import viewsets
 from rest_framework.response import Response
 
@@ -125,6 +125,18 @@ class UIDRepoViewSet(viewsets.ViewSet):
         # Retrieve all UIDs from the GeneratedUIDLog model
         uids = GeneratedUIDLog.objects.all()
         uid_data = [{'uid': log.uid, 'generated_at': log.generated_at, 'generator_id': log.generator_id} for log in uids]
+        return Response(uid_data)
+    
+class UIDGeneratedViewSet(viewsets.ViewSet):
+    def list(self, request):
+        # Retrieve all UIDs from the GeneratedUIDLog model
+        uid_data = report_all_generated_uids()
+        return Response(uid_data)
+    
+class UIDTermViewSet(viewsets.ViewSet):
+    def list(self, request):
+        # Retrieve all UIDs from the GeneratedUIDLog model
+        uid_data = report_all_term_uids()
         return Response(uid_data)
     
 # Postman view
