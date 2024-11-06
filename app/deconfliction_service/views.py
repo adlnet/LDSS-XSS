@@ -35,6 +35,8 @@ def run_deconfliction(alias: str, definition: str, context: str, context_descrip
 def deconfliction_admin_view(request):
     duplicates = get_duplicate_definitions()
     collisions = find_colliding_definition_nodes()
+    deviations = get_terms_with_multiple_definitions()
+    logger.info(f'Deviations: {deviations}')
     
     collision_data = []
     for result in collisions:
@@ -46,9 +48,15 @@ def deconfliction_admin_view(request):
             'id_2': collision['id_2'],
         })
 
+    deviation_data = []
+    for result in deviations:
+        deviation = result[0]
+        deviation_data.append(deviation)
+
     context = {
         'collisions': collision_data,
         'duplicates': duplicates,
+        'deviations': deviation_data
     }
     return render(request, 'admin/deconfliction_service/deconfliction_admin.html', context)
 

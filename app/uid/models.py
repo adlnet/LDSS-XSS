@@ -174,7 +174,7 @@ class UIDGenerator:
         last_uid_record = LastGeneratedUID.objects.first()
         return last_uid_record.uid if last_uid_record else None
     
-uid_singleton = UIDGenerator()
+# uid_singleton = UIDGenerator()
 
 # Neo4j UID Node
 class UIDNode(DjangoNode):

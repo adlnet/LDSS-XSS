@@ -59,5 +59,14 @@
 <p>No duplicate definitions found.</p>
 {% endif %}
 
-<h2>Deviations</h2> {% if deviations %} <ul> {% for deviation in deviations %} <li>{{ deviation }}</li> {% endfor %} </ul> {% else %} <p>No deviations found.</p> {% endif %}
+<h2>Deviations</h2> {% if deviations %} 
+    <ul> 
+        {% for deviation in deviations %} 
+        <li>
+            <strong>{{ deviation.term_uid }}</strong> has <strong>{{deviation.count}}</strong> deviations</li> 
+        {% endfor %} 
+    </ul> 
+    {% else %} 
+        <p>No deviations found.</p> 
+    {% endif %}
 {% endblock %}

@@ -40,7 +40,10 @@ def get_terms_with_multiple_definitions():
     MATCH (t:NeoTerm)-[:POINTS_TO]->(d:NeoDefinition)
     WITH t, COUNT(d) AS definition_count
     WHERE definition_count > 1
-    RETURN t, definition_count
+    RETURN {
+    term_uid: t.uid,
+    count: definition_count
+    }
     """
     results, _ = db.cypher_query(cypher_query)
 
