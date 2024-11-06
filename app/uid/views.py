@@ -127,17 +127,16 @@ class UIDRepoViewSet(viewsets.ViewSet):
         uid_data = [{'uid': log.uid, 'generated_at': log.generated_at, 'generator_id': log.generator_id} for log in uids]
         return Response(uid_data)
     
-class UIDGeneratedViewSet(viewsets.ViewSet):
-    def list(self, request):
-        # Retrieve all UIDs from the GeneratedUIDLog model
-        uid_data = report_all_generated_uids()
-        return Response(uid_data)
+def report_generated_uids(request):
+    # Retrieve all UIDs from the GeneratedUIDLog model
+    uid_data = report_all_generated_uids()
+    return JsonResponse(uid_data, safe=False)
     
 class UIDTermViewSet(viewsets.ViewSet):
     def list(self, request):
         # Retrieve all UIDs from the GeneratedUIDLog model
         uid_data = report_all_term_uids()
-        return Response(uid_data)
+        return JsonResponse(json.dumps(uid_data, default=str))
     
 # Postman view
 def export_to_postman(request, uid):

@@ -39,13 +39,13 @@ class UIDCounter(StructuredNode):
     owner_uid = StringProperty(required=True)
     counter = IntegerProperty(default=0)
     
-    # _cached_instance = None #added for caching
-    _cache = {}
+    # # _cached_instance = None #added for caching
+    # _cache = {}
 
     @classmethod
     def _get_instance(cls, owner_uid: str) -> 'UIDCounter':
-        if owner_uid in cls._cache:
-            return cls._cache[owner_uid]
+        # if owner_uid in cls._cache:
+        #     return cls._cache[owner_uid]
     
         # try:
         # instances = cls.get_or_create(owner_uid=owner_uid)
@@ -56,7 +56,7 @@ class UIDCounter(StructuredNode):
         if result is None:
             instance = UIDCounter(owner_uid=owner_uid)
             instance.save()
-            cls._cache[owner_uid] = instance
+            # cls._cache[owner_uid] = instance
             return instance
         
         if isinstance(result, list):
@@ -65,17 +65,17 @@ class UIDCounter(StructuredNode):
             instance = result
         
         assert isinstance(instance, UIDCounter)
-        cls._cache[owner_uid] = instance
-        return instance
+        # cls._cache[owner_uid] = instance
+        return instance 
 
     @classmethod
     def increment(cls, owner_uid: str):
-        with transaction.atomic():  # Ensure atomic operation
-            instance = cls._get_instance(owner_uid)
-            current_value = instance.counter
-            instance.counter = current_value + 1
-            instance.save()
-            return instance.counter
+        # with transaction.atomic():  # Ensure atomic operation
+        instance = cls._get_instance(owner_uid)
+        current_value = instance.counter
+        instance.counter = current_value + 1
+        instance.save()
+        return instance.counter
 
 # # Django model for admin management
 # class UIDCounterDjangoModel(models.Model):
@@ -219,7 +219,7 @@ def generate_uid(owner_uid) -> str:
 # Provider and LCVTerms now Nodes
 class Provider(DjangoNode):
     # uid = StringProperty(unique_index=True)
-    name = StringProperty(required=True)
+    name = StringProperty(required=True, unique=True)
     default_uid = StringProperty(required=True)
 
     uid = RelationshipTo('UIDNode', 'HAS_UID')
@@ -381,7 +381,13 @@ def report_all_uids():
 def report_all_generated_uids():
     """Retrieve all generated UIDs from the log."""
     logs = GeneratedUIDLog.objects.all()
-    return [(log.uid, log.uid_full, log.generated_at, log.generator_id) for log in logs]
+    return [
+        {
+            "uid": log.uid, 
+            "uid_full": log.uid_full, 
+            "generated_at": str(log.generated_at)
+        } for log in logs
+    ]
 
 def report_all_term_uids():
     """
