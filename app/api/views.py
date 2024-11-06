@@ -409,6 +409,9 @@ class SendTermsToExternalAPI(APIView):
         if not api_url or not api_endpoint:
             return JsonResponse({'error': 'API URL and endpoint are required'}, status=400)
         
+        ## maybe just test? 
+        return Response({"message": "Terms sent successfully to external API"}, status=status.HTTP_200_OK)
+
         # Fetch terms 
         terms = NeoTerm.nodes.all()  
         ## This is an example framework, I need to implement a search here, for the users query. So, maybe parse the post for what they want

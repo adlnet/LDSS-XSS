@@ -1,5 +1,5 @@
 version: "3"
- 
+
 services:
   db-xss:
     image: mysql:5.7
@@ -10,25 +10,25 @@ services:
       MYSQL_USER: "${DB_USER}"
       MYSQL_PASSWORD: "${DB_PASSWORD}"
       MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
-      # MYSQL_HOST: ''
     networks:
       - openlxp
     
   neo4j:
     image: neo4j:4.2.0
     ports:
-      - '7688:7687'  # HTTP port (changed)
-      - '7475:7475'  # Bolt port (changed)
+      - '7687:7687'
+      - '7474:7474'
     environment:
       NEO4J_AUTH: neo4j/password
     networks:
       - openlxp
+
   app:
-    container_name: openlxp-xss-2
+    container_name: openlxp-xss
     build:
       context: .
     ports:
-      - "8030:8020" # change port to 8030 for second instance
+      - "8010:8020"
     restart: always
     command: >
       sh -c "python manage.py makemigrations && python manage.py migrate && . /opt/app/start-app.sh"
@@ -44,19 +44,69 @@ services:
       ENTITY_ID: "${ENTITY_ID}"
       SP_PUBLIC_CERT: "${SP_PUBLIC_CERT}"
       SP_PRIVATE_KEY: "${SP_PRIVATE_KEY}"
-      # BAD_HOST: "${BAD_HOST}"
-      # OVERIDE_HOST: "${OVERIDE_HOST}"
-      # STRATEGY: "${STRATEGY}"
-      NEO4J_URL: "bolt://neo4j:password@neo4j:7688"
+      NEO4J_URL: "bolt://neo4j:password@neo4j:7687"
     volumes:
-      - ./app:/opt/app/openlxp-xss2
+      - ./app:/opt/app/openlxp-xss
     depends_on:
       - db-xss
     networks:
       - openlxp
+
+  db-xss-second:
+    image: mysql:5.7
+    ports:
+      - '3320:3306'
+    environment:
+      MYSQL_DATABASE: "${DB_NAME}"
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+    networks:
+      - openlxp
+
+  neo4j-second:
+    image: neo4j:4.2.0
+    ports:
+      - '7688:7687'
+      - '7475:7475'
+    environment:
+      NEO4J_AUTH: neo4j/password
+    networks:
+      - openlxp
+
+  app-second:
+    container_name: openlxp-xss-2
+    build:
+      context: .
+    ports:
+      - "8030:8020"
+    restart: always
+    command: >
+      sh -c "python manage.py makemigrations && python manage.py migrate && . /opt/app/start-app.sh"
+    environment:
+      DB_NAME: "${DB_NAME}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_HOST: "${DB_HOST}"
+      DJANGO_SUPERUSER_USERNAME: "${DJANGO_SUPERUSER_USERNAME}"
+      DJANGO_SUPERUSER_PASSWORD: "${DJANGO_SUPERUSER_PASSWORD}"
+      DJANGO_SUPERUSER_EMAIL: "${DJANGO_SUPERUSER_EMAIL}"
+      SECRET_KEY_VAL: "${SECRET_KEY_VAL}"
+      ENTITY_ID: "${ENTITY_ID}"
+      SP_PUBLIC_CERT: "${SP_PUBLIC_CERT}"
+      SP_PRIVATE_KEY: "${SP_PRIVATE_KEY}"
+      NEO4J_URL: "bolt://neo4j:password@neo4j-second:7687"
+    volumes:
+      - ./app-xss-second:/opt/app/openlxp-xss-second
+    depends_on:
+      - db-xss-second
+    networks:
+      - openlxp
+
 volumes:
   data01:
-    driver: local
+    driver: local  # Consider removing if not used
+
 networks:
   openlxp:
     driver: bridge
