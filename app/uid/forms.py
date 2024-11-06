@@ -1,11 +1,44 @@
 from django import forms
-from .models import Provider, LCVTerm  # Import Neo4j models directly
+from .models import Provider, LCVTerm, UIDRequestToken # Import Neo4j models directly
+from uuid import uuid4
 #from .models import LastGeneratedUID
 
 #class LastGeneratedUIDForm(forms.ModelForm):
  #   class Meta:
   #      model = LastGeneratedUID
    #     fields = ['uid']
+
+class UIDRequestForm(forms.ModelForm):
+    token = forms.CharField(max_length=255)
+    provider_name = forms.CharField(max_length=255)
+    echelon = forms.CharField(max_length=255)
+    termset = forms.CharField(max_length=255)
+
+    def save(self):
+        given_provider = self.cleaned_data['provider']
+        given_echelon = self.cleaned_data['echelon']
+        given_termset = self.cleaned_data['termset']
+
+        provider_already_exists = Provider.does_provider_exist(given_provider)
+        if provider_already_exists:
+            provider = Provider.get_provider_by_name(given_provider)
+        else:
+            provider = Provider.create_provider(given_provider)
+        
+        uid_request = UIDRequestToken()
+        uid_request.provider_uid = provider.default_uid
+        uid_request.echelon = given_echelon
+        uid_request.termset = given_termset
+        uid_request.token = uuid4()
+
+        uid_request.save()
+
+        return uid_request
+
+    class Meta:
+        model = UIDRequestToken
+        #fields = ['uid', 'name', 'echelon_level']
+        fields = ['provider_uid', 'echelon', 'termset', 'token'] # UID is self generated
 
 class ProviderForm(forms.ModelForm):
     # uid = forms.CharField(max_length=255)

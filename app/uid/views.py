@@ -131,7 +131,7 @@ def report_generated_uids(request):
     # Retrieve all UIDs from the GeneratedUIDLog model
     uid_data = report_all_generated_uids()
     return JsonResponse(uid_data, safe=False)
-    
+
 class UIDTermViewSet(viewsets.ViewSet):
     def list(self, request):
         # Retrieve all UIDs from the GeneratedUIDLog model

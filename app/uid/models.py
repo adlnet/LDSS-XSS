@@ -244,6 +244,14 @@ class Provider(DjangoNode):
         return provider
     
     @classmethod
+    def does_provider_exist(cls, name):
+        provider_nodes = Provider.nodes
+        assert isinstance(provider_nodes, NodeSet)
+        result = provider_nodes.get_or_none(name=name)
+
+        return result is None
+    
+    @classmethod
     def get_provider_by_name(cls, name):
         provider_nodes = Provider.nodes
         assert isinstance(provider_nodes, NodeSet)
@@ -283,6 +291,16 @@ class ProviderDjangoModel(models.Model):
     class Meta:
         verbose_name = "Provider"
         verbose_name_plural = "Providers"
+
+class UIDRequestToken(models.Model):
+    token = models.CharField(max_length=255, unique=True)
+    provider_uid = models.CharField(max_length=255)
+    echelon = models.CharField(max_length=255)
+    termset = models.CharField(max_length=255)
+
+    class Meta:
+        verbose_name = "UIDRequestToken"
+        verbose_name_plural = "UIDRequestTokens"
 
 # LCV Terms model for DjangoNode
 class LCVTerm(DjangoNode):
