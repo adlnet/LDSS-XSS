@@ -272,7 +272,7 @@ class Provider(DjangoNode):
 # Django Provider Model for Admin
 class ProviderDjangoModel(models.Model):
     # uid = models.CharField(max_length=255, unique=True)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     # default_uid = StringProperty(required=True)
 
     def save(self, *args, **kwargs):
