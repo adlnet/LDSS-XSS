@@ -18,11 +18,13 @@ from django.conf.urls import url
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-
+from api import views
 urlpatterns = [
     url('', include('openlxp_authentication.urls')),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('api/auth/', include('users.urls')),
     path('uid/', include('uid.urls')),
+    ## Downstream to send terms
+    path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
