@@ -140,15 +140,39 @@ def api_generate_uid(request: HttpRequest):
 
     # try:
     payload = json.loads(request.body.decode("utf-8"))
+    if "provider_name" not in payload:
+        return JsonResponse({"message": "You must specify a 'provider_name' when requesting a UID."}, status=400)
+    
     given_provider = payload["provider_name"]
+    if not isinstance(given_provider, str):
+        return JsonResponse({"message": "Param 'provider_name' must be a string less than 100 characters long."}, status=400)
+    if len(given_provider) >= 100:
+        return JsonResponse({"message": "Param 'provider_name' must be a string less than 100 characters long."}, status=400)
 
-    assert isinstance(given_provider, str)
-    request_node = UIDRequestNode.create_requested_uid(given_provider)
-    return JsonResponse({
-        "token": request_node.token,
-        "uid": request_node.default_uid,
-        "uid_chain": request_node.default_uid_chain
-    })
+    if "bulk" in payload:
+        given_bulk = payload["bulk"]
+        if not isinstance(given_bulk, int):
+            return JsonResponse({"message": "Param 'bulk' must be an integer between 0 and 100."}, status=400)
+        if (given_bulk <= 0) or given_bulk > 100:
+            return JsonResponse({"message": "Param 'bulk' must be an integer between 0 and 100."}, status=400)
+        
+        request_nodes = [UIDRequestNode.create_requested_uid(given_provider) for _ in range(given_bulk)]
+        return JsonResponse([
+            {
+                "token": node.token,
+                "uid": node.default_uid,
+                "uid_chain": node.default_uid_chain
+            }
+            for node in request_nodes
+        ], safe=False)
+        
+    else:
+        request_node = UIDRequestNode.create_requested_uid(given_provider)
+        return JsonResponse({
+            "token": request_node.token,
+            "uid": request_node.default_uid,
+            "uid_chain": request_node.default_uid_chain
+        })
     
     # except Exception as ex:
     #     return HttpResponse(f"Could not process request: {ex}")
