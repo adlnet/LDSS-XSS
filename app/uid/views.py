@@ -4,11 +4,12 @@ from django.http import HttpResponse, HttpRequest, JsonResponse
 import json, logging
 from neomodel import db
 # from .models import UIDGenerator, UIDNode, Provider, LCVTerm, LanguageSet
-from .models import UIDNode, Provider, generate_uid
+from .models import UIDNode, Provider, generate_uid, UIDRequestNode
 from .forms import ProviderForm
 from .models import report_all_uids, report_all_generated_uids, report_all_term_uids, report_uids_by_echelon, GeneratedUIDLog
 from rest_framework import viewsets
 from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
 
 
 # Set up logging to capture errors and important information
@@ -131,6 +132,26 @@ def report_generated_uids(request):
     # Retrieve all UIDs from the GeneratedUIDLog model
     uid_data = report_all_generated_uids()
     return JsonResponse(uid_data, safe=False)
+
+@csrf_exempt
+def api_generate_uid(request: HttpRequest):
+    if request.method != "POST":
+        return HttpResponse("This endpoint only works with POST.")
+
+    # try:
+    payload = json.loads(request.body.decode("utf-8"))
+    given_provider = payload["provider_name"]
+
+    assert isinstance(given_provider, str)
+    request_node = UIDRequestNode.create_requested_uid(given_provider)
+    return JsonResponse({
+        "token": request_node.token,
+        "uid": request_node.default_uid,
+        "uid_chain": request_node.default_uid_chain
+    })
+    
+    # except Exception as ex:
+    #     return HttpResponse(f"Could not process request: {ex}")
 
 class UIDTermViewSet(viewsets.ViewSet):
     def list(self, request):

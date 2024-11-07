@@ -304,16 +304,11 @@ class UIDRequestToken(models.Model):
     def save(self, *args, **kwargs):
         
         given_provider = self.provider_name
-        provider_already_exists = Provider.does_provider_exist(given_provider)
-
-        if not provider_already_exists:
-            new_provider = ProviderDjangoModel(name=given_provider)
-            new_provider.save()
         
         requested_node = UIDRequestNode.create_requested_uid(given_provider)
         requested_node.save()
 
-        self.token = uuid4()
+        self.token = requested_node.token
         self.uid = requested_node.default_uid
         self.uid_chain = requested_node.default_uid_chain
 
@@ -324,6 +319,7 @@ class UIDRequestToken(models.Model):
         verbose_name_plural = "UIDRequestTokens"
 
 class UIDRequestNode(DjangoNode):
+    token = StringProperty(required=True)
     default_uid = StringProperty(required=True)
     default_uid_chain = StringProperty(default="")
 
@@ -333,12 +329,19 @@ class UIDRequestNode(DjangoNode):
     @classmethod
     def create_requested_uid(cls, provider_name: str):
         
+        provider_already_exists = Provider.does_provider_exist(provider_name)
+
+        if not provider_already_exists:
+            new_provider = ProviderDjangoModel(name=provider_name)
+            new_provider.save()
+
         provider = Provider.get_provider_by_name(provider_name)
         assert isinstance(provider, Provider)
                 
         uid_node = UIDNode.create_node(owner_uid=provider.default_uid)
 
         requested_node = UIDRequestNode()
+        requested_node.token = uuid4()
         requested_node.default_uid = uid_node.uid
         requested_node.default_uid_chain = f"{provider.default_uid}-{uid_node.uid}" 
         requested_node.save()
