@@ -250,7 +250,7 @@ class Provider(DjangoNode):
         assert isinstance(provider_nodes, NodeSet)
         result = provider_nodes.get_or_none(name=name)
 
-        return result is None
+        return result is not None
     
     @classmethod
     def get_provider_by_name(cls, name):
@@ -298,16 +298,25 @@ class UIDRequestToken(models.Model):
     provider_name = models.CharField(max_length=255)
     echelon = models.CharField(max_length=255)
     termset = models.CharField(max_length=255)
-    uid = models.CharField(max_length=255, default="")
+    uid = models.CharField(max_length=255)
+    uid_chain = models.CharField(max_length=255)
 
     def save(self, *args, **kwargs):
-        self.token = uuid4()
+        
+        given_provider = self.provider_name
+        provider_already_exists = Provider.does_provider_exist(given_provider)
 
-        provider_already_exists = Provider.does_provider_exist(self.provider_name)
         if not provider_already_exists:
-            new_provider = ProviderDjangoModel(self.provider_name)
+            new_provider = ProviderDjangoModel(name=given_provider)
             new_provider.save()
         
+        requested_node = UIDRequestNode.create_requested_uid(given_provider)
+        requested_node.save()
+
+        self.token = uuid4()
+        self.uid = requested_node.default_uid
+        self.uid_chain = requested_node.default_uid_chain
+
         super().save(*args, **kwargs)
 
     class Meta:

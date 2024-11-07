@@ -27,26 +27,9 @@ class LCVTermAdmin(admin.ModelAdmin):
     search_fields = ('provider_name', 'term', 'echelon', 'structure')
 
 class UIDRequestAdmin(admin.ModelAdmin):
-    list_display = ('provider_name', 'token', 'uid', )
-    search_fields = ('provider_name', 'token', 'uid', )
-    exclude = ('token', 'echelon', 'termset', 'uid', )
-
-    def save_form(self, request: HttpRequest, form: ModelForm, change: bool):
-
-        given_provider = form.cleaned_data["provider_name"]
-
-        provider_already_exists = Provider.does_provider_exist(given_provider)
-        if not provider_already_exists:
-            new_provider = ProviderDjangoModel(given_provider)
-            new_provider.save()
-        
-        requested_node = UIDRequestNode.create_requested_uid(given_provider)
-        requested_node.save()
-
-        form.cleaned_data["token"] = uuid4()
-        form.cleaned_data["uid"] = requested_node.default_uid
-
-        return super().save_form(request, form, change)
+    list_display = ('provider_name', 'token', 'uid', 'uid_chain', )
+    search_fields = ('provider_name', 'token', 'uid', 'uid_chain', )
+    exclude = ('token', 'echelon', 'termset', 'uid', 'uid_chain' )
 
 admin.site.register(ProviderDjangoModel, ProviderAdmin)
 admin.site.register(LCVTermDjangoModel, LCVTermAdmin)
