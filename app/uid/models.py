@@ -5,6 +5,7 @@ import time, logging, re # Import time module to use sleep, Logging and re
 from django_neomodel import DjangoNode
 from collections import defaultdict
 from typing import List
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -294,14 +295,50 @@ class ProviderDjangoModel(models.Model):
 
 class UIDRequestToken(models.Model):
     token = models.CharField(max_length=255, unique=True)
-    provider_uid = models.CharField(max_length=255)
+    provider_name = models.CharField(max_length=255)
     echelon = models.CharField(max_length=255)
     termset = models.CharField(max_length=255)
+    uid = models.CharField(max_length=255, default="")
+
+    def save(self, *args, **kwargs):
+        self.token = uuid4()
+
+        provider_already_exists = Provider.does_provider_exist(self.provider_name)
+        if not provider_already_exists:
+            new_provider = ProviderDjangoModel(self.provider_name)
+            new_provider.save()
+        
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "UIDRequestToken"
         verbose_name_plural = "UIDRequestTokens"
 
+class UIDRequestNode(DjangoNode):
+    default_uid = StringProperty(required=True)
+    default_uid_chain = StringProperty(default="")
+
+    provider = RelationshipTo('Provider', 'HAS_PROVIDER')
+    uid = RelationshipTo('UIDNode', 'HAS_UID')
+
+    @classmethod
+    def create_requested_uid(cls, provider_name: str):
+        
+        provider = Provider.get_provider_by_name(provider_name)
+        assert isinstance(provider, Provider)
+                
+        uid_node = UIDNode.create_node(owner_uid=provider.default_uid)
+
+        requested_node = UIDRequestNode()
+        requested_node.default_uid = uid_node.uid
+        requested_node.default_uid_chain = f"{provider.default_uid}-{uid_node.uid}" 
+        requested_node.save()
+        requested_node.uid.connect(uid_node)
+        requested_node.provider.connect(provider)
+        requested_node.save()
+        
+        return requested_node
+    
 # LCV Terms model for DjangoNode
 class LCVTerm(DjangoNode):
     default_uid = StringProperty(required=True)

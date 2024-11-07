@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('token', models.CharField(max_length=255, unique=True)),
-                ('provider_uid', models.CharField(max_length=255)),
+                ('provider_name', models.CharField(max_length=255)),
                 ('echelon', models.CharField(max_length=255)),
                 ('termset', models.CharField(max_length=255)),
             ],
