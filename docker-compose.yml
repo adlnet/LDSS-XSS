@@ -75,9 +75,11 @@ services:
         condition: service_healthy
     networks:
       - openlxp
+
 volumes:
   huggingface_data:
     driver: local
+
 networks:
   openlxp:
     driver: bridge
