@@ -20,5 +20,6 @@ urlpatterns = [
     # for upstream and downstream
 
     ## Downstream to send terms
-      path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
+     path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
+     path('receive-terms/', views.ReceiveTermsFromExternalAPI.as_view(), name='receive-terms'),
 ]

@@ -14,11 +14,13 @@ from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
+import requests
+
 
 from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
                              TermSetSerializer)
 from core.management.utils.xss_helper import sort_version
-from core.models import  TermSet
+from core.models import  NeoTerm, TermSet
 
 from .utils import create_terms_from_csv, validate_csv, convert_to_xml
 
@@ -394,7 +396,7 @@ class ExportTermsView(APIView):
 ## Classes for connecting to external APIS.
 ## Param - APIVIEW is a django rest framework class that helps with API, with built in methods like get, post, put, delete
 class SendTermsToExternalAPI(APIView):
-    
+    print("Hit the SendTermsToExternalAPI view POST method")  # Simple check
     ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
     permission_classes = [AllowAny]
     
@@ -405,12 +407,17 @@ class SendTermsToExternalAPI(APIView):
         username = request.data.get('username')
         password = request.data.get('password')
         
+        #what is api_url and others here?
+        print(" api_url is ", api_url)
+        print("api endpoint is ", api_endpoint)
+        print('username is ', username)
+        print('password is ' ,password)
+        
         # Check if the required parameters are provided
         if not api_url or not api_endpoint:
-            return JsonResponse({'error': 'API URL and endpoint are required'}, status=400)
-        
+            return JsonResponse({'error': f'Failed to parse URL or endpoint: {response.text}'}, status=response.status_code)        
         ## maybe just test? 
-        return Response({"message": "Terms sent successfully to external API"}, status=status.HTTP_200_OK)
+       # return Response({"message": "Terms sent successfully to external API"}, status=status.HTTP_200_OK)
 
         # Fetch terms 
         terms = NeoTerm.nodes.all()  
@@ -432,6 +439,7 @@ class SendTermsToExternalAPI(APIView):
         ## Maybe something like if terms_data is empty then response = {'message': 'No terms to send'}
         if not terms_data:
             data = {'message': 'No terms found to send'}
+            headers = {'Content-Type': 'application/json'}
         else:
             # Convert the terms to JSON (or use CSV if needed)
             # Sending JSON data to the external API
@@ -440,13 +448,15 @@ class SendTermsToExternalAPI(APIView):
         
         # Authenticate (Basic Authentication or using credentials)
         auth = (username, password)
-    
+        #test
+        #api_url = 'http://openlxp-xss-2:8030'
         try:
             # Send data to the external API via POST request
             response = requests.post(f'{api_url}/{api_endpoint}', json=data, headers=headers, auth=auth)
-            
+            #response = requests.post(f'http://openlxp-xss-2:8030/send-terms/', json=data, headers=headers, auth=auth)
+
             if response.status_code == 200:
-                return JsonResponse({'message': 'Terms sent successfully to external API'}, status=200)
+                return JsonResponse({'message': 'Terms sent successfully to external API2'}, status=200)
             else:
                 return JsonResponse({'error': f'Failed to send terms: {response.text}'}, status=response.status_code)
         
@@ -455,6 +465,8 @@ class SendTermsToExternalAPI(APIView):
 
 ## Param - APIVIEW is a django rest framework class that helps with API, with built in methods like get, post, put, delete
 class ReceiveTermsFromExternalAPI(APIView):
+    
+    print("Hit the ReceiveTermsFromExternalAPI view POST method")  # Simple check
     ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
     permission_classes = [AllowAny]
     
@@ -465,9 +477,16 @@ class ReceiveTermsFromExternalAPI(APIView):
         username = request.query_params.get('username')
         password = request.query_params.get('password')
         
+        #what is api_url and others here?
+        print(" api_url is ", api_url)
+        print("api endpoint is ", api_endpoint)
+        print('username is ', username)
+        print('password is ' ,password)
         if not api_url or not api_endpoint:
-            return JsonResponse({'error': 'API URL and endpoint are required'}, status=400)
-
+            return JsonResponse({'error': f'Failed to parse URL or endpoint: {response.text}'}, status=response.status_code)  
+#test
+        # api_url = 'http://openlxp-xss-2:8030'
+        
         # Authentication (Basic Authentication or API Token)
         auth = (username, password)
         
