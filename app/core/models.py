@@ -58,8 +58,7 @@ class TermSet(TimeStampedModel):
     name = models.SlugField(max_length=255, allow_unicode=True)
     version = models.CharField(max_length=255, validators=[validate_version])
     status = models.CharField(max_length=255, choices=STATUS_CHOICES)
-    updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 
     def save(self, *args, **kwargs):
         """Generate iri for item"""
@@ -71,10 +70,8 @@ class TermSet(TimeStampedModel):
         super().save(*args, **kwargs)
 
     def export(self):
-        children = {kid.name: kid.export()
-                    for kid in self.children.filter(status='published')}
-        terms = {term.name: term.export()
-                 for term in self.terms.filter(status='published')}
+        children = {kid.name: kid.export() for kid in self.children.filter(status='published')}
+        terms = {term.name: term.export() for term in self.terms.filter(status='published')}
         return {**children, **terms}
 
     def json_ld(self):
@@ -89,8 +86,8 @@ class TermSet(TimeStampedModel):
         context['rdfs'] = 'http://www.w3.org/2000/01/rdf-schema#'
         if hasattr(self, 'childtermset'):
             graph['schema:domainIncludes'] = {
-                '@id': 'ldss:' +
-                self.childtermset.parent_term_set.iri}
+                '@id': 'ldss:' + self.childtermset.parent_term_set.iri
+            }
             context['schema'] = 'https://schema.org/'
         # iterate over child term sets and collect their graphs and contexts
         children = []
@@ -115,10 +112,8 @@ class TermSet(TimeStampedModel):
         """Return dict of Terms mapped to anything in target_root string"""
 
         # filter out children with no mapped terms
-        children = {kid.name: kid.mapped_to(target_root)
-                    for kid in self.children.filter(status='published')}
-        filtered_children = dict(
-            filter(lambda kid: len(kid[1]) != 0, children.items()))
+        children = {kid.name: kid.mapped_to(target_root) for kid in self.children.filter(status='published')}
+        filtered_children = dict(filter(lambda kid: len(kid[1]) != 0, children.items()))
 
         # filter out terms that do not have a mapping
         terms = {term.name: term.mapped_to(target_root)
@@ -139,8 +134,7 @@ class ChildTermSet(TermSet):
         self.version = self.parent_term_set.version
         update_fields = kwargs.get('update_fields', None)
         if update_fields:
-            kwargs['update_fields'] = set(
-                update_fields).union({'iri', 'version'})
+            kwargs['update_fields'] = set(update_fields).union({'iri', 'version'})
 
         super(TermSet, self).save(*args, **kwargs)
 
@@ -448,7 +442,7 @@ class NeoTerm(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, uid: str):
+    def get_or_create(cls, uid: str) -> tuple['NeoTerm', bool]:
         try:
             term_node = cls.nodes.get_or_none(uid=uid)
             if term_node:
@@ -492,7 +486,7 @@ class NeoAlias(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, alias: str):
+    def get_or_create(cls, alias: str) -> tuple['NeoAlias', bool]:
         """Retrieve an existing NeoAlias or create a new one if not found, with error handling."""
         try:
             alias_node = cls.nodes.get_or_none(alias=alias)
@@ -534,7 +528,7 @@ class NeoContext(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, context: str): 
+    def get_or_create(cls, context: str) -> tuple['NeoContext', bool]: 
         try:
             
             context_node = cls.nodes.get_or_none(context=context)
