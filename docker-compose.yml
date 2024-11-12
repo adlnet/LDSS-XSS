@@ -76,10 +76,6 @@ services:
     networks:
       - openlxp
 volumes:
-  es_data:
-    driver: local
-  data01:
-    driver: local
   huggingface_data:
     driver: local
 networks:
