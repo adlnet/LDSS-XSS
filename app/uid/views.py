@@ -11,8 +11,64 @@ from rest_framework.response import Response
 from typing import List
 from pathlib import Path
 
-#log_file_path = Path(__file__).resolve().parent / 'logs' / 'django_debug.log'
-#log_file_path.parent.mkdir(exist_ok=True)
+from .forms import SearchForm
+#from .views import execute_neo4j_query, SEARCH_BY_ALIAS, SEARCH_BY_DEFINITION, SEARCH_BY_CONTEXT, GENERAL_GRAPH_SEARCH
+
+# Neo4j connection details
+NEO4J_URI = "http://localhost:7474/db/data/transaction/commit"  # Replace with your Neo4j URL
+NEO4J_AUTH = ('neo4j', 'password')  # Your Neo4j credentials
+
+# Cypher Queries
+SEARCH_BY_ALIAS = """
+WITH toLower($search_term) as search_term
+MATCH (a:NeoAlias)
+WHERE toLower(a.alias) CONTAINS search_term
+MATCH (a)-[:POINTS_TO]->(term:NeoTerm)
+OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
+OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
+RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+LIMIT 100
+"""
+
+SEARCH_BY_DEFINITION = """
+WITH toLower($search_term) as search_term
+MATCH (def:NeoDefinition)
+WHERE toLower(def.definition) CONTAINS search_term
+MATCH (term:NeoTerm)-[:POINTS_TO]->(def)
+OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
+OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
+RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+LIMIT 100
+"""
+
+SEARCH_BY_CONTEXT = """
+WITH toLower($search_term) as search_term
+MATCH (ctx:NeoContext)
+WHERE toLower(ctx.context) CONTAINS search_term
+MATCH (ctx)-[:IS_A]->(term:NeoTerm)
+OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
+OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
+RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+LIMIT 100
+"""
+
+GENERAL_GRAPH_SEARCH = """
+WITH toLower($search_term) as search_term
+MATCH (n)
+WHERE (n:NeoAlias OR n:NeoDefinition OR n:NeoContext)  
+  AND (
+    (n:NeoAlias AND toLower(n.alias) CONTAINS search_term) OR
+    (n:NeoDefinition AND toLower(n.definition) CONTAINS search_term) OR
+    (n:NeoContext AND toLower(n.context) CONTAINS search_term)
+  )
+WITH n
+CALL {
+    WITH n
+    MATCH path = (n)-[*1..2]-(connected)
+    RETURN path
+}
+RETURN * LIMIT 100
+"""
 
 # Set up logging to capture errors and important information
 logger = logging.getLogger('dict_config_logger')
@@ -187,3 +243,59 @@ def export_to_postman(request, uid):
                 return JsonResponse({'error': 'UID not found'}, status=404)
 
     return JsonResponse(data)
+
+# Define the helper function to perform search queries
+# View to handle the search request
+# Function to execute the search queries on Neo4j views.py
+def execute_neo4j_query(query, params):
+    payload = {
+        "statements": [{
+            "statement": query,
+            "parameters": params
+        }]
+    }
+    response = requests.post(NEO4J_URL, json=payload, auth=NEO4J_AUTH)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return None
+
+# Django view for search functionality
+def search(request):
+    results = []
+    if request.method == 'POST':
+        form = SearchForm(request.POST)
+        if form.is_valid():
+            search_term = form.cleaned_data['search_term']
+            search_type = form.cleaned_data['search_type']
+
+            # Determine which query to use based on search type
+            if search_type == 'alias':
+                query = SEARCH_BY_ALIAS
+            elif search_type == 'definition':
+                query = SEARCH_BY_DEFINITION
+            elif search_type == 'context':
+                query = SEARCH_BY_CONTEXT
+            else:
+                query = GENERAL_GRAPH_SEARCH  # For 'general' search
+
+            # Execute the query
+            results_data = execute_neo4j_query(query, {"search_term": search_term})
+
+            if results_data:
+                results = [
+                    {
+                        "LCVID": record['row'][0],
+                        "Alias": record['row'][1],
+                        "Definition": record['row'][2],
+                        "Context": record['row'][3] if record['row'][3] else "No context"  # Handle missing context
+                    }
+                    for record in results_data['results'][0]['data']
+                ]
+            else:
+                results = [{'error': 'No results found or error querying Neo4j.'}]
+
+    else:
+        form = SearchForm()
+
+    return render(request, 'search.html', {'form': form, 'results': results})

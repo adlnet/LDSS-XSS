@@ -32,3 +32,22 @@ class LCVTermForm(forms.ModelForm):
         model = LCVTerm
         #fields = ['uid', 'term', 'echelon_level']
         fields = ['term', 'echelon_level'] # UID is self Generated
+
+# Search Forms
+class SearchForm(forms.Form):
+    search_term = forms.CharField(max_length=255, required=True, label="Search Term")
+    search_type = forms.ChoiceField(choices=[
+        ('general', 'General Search'),
+        ('alias', 'Search by Alias'),
+        ('definition', 'Search by Definition'),
+        ('context', 'Search by Context'),
+    ], required=True, label="Search Type"
+    )
+    context = forms.CharField(label='Context', required=False, max_length=255)
+# User input
+#class SearchForm(forms.Form):
+ #   search_term = forms.CharField(max_length=255, label="Search Term")
+  #  search_type = forms.ChoiceField(
+   #     choices=[("alias", "Alias"), ("definition", "Definition"), ("context", "Context"), ("general", "General")],
+    #    label="Search Type"
+    #)

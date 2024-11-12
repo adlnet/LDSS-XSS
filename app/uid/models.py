@@ -6,6 +6,11 @@ from django_neomodel import DjangoNode
 from collections import defaultdict
 from pathlib import Path
 
+from neo4j import GraphDatabase
+
+# Connect to your Neo4j database (modify the URI, username, and password as necessary)
+#graph = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
+
 logger = logging.getLogger(__name__)
 
 UID_PATTERN = r"^0x[0-9A-Fa-f]{8}$"

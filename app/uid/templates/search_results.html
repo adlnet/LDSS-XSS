@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+</head>
+<body>
+    <h1>Search Results</h1>
+
+    <!-- Search Form -->
+    <form method="get" action="{% url 'search_results' %}">
+        {{ form.as_p }}
+        <button type="submit">Search Again</button>
+    </form>
+
+    {% if search_results %}
+        <h3>Results for "{{ query }}" using search type "{{ form.search_type.value }}"</h3>
+        <ul>
+            {% for result in search_results %}
+                <li>
+                    <strong>LCVID:</strong> {{ result.LCVID }}<br>
+                    <strong>Alias:</strong> {{ result.Alias }}<br>
+                    <strong>Definition:</strong> {{ result.Definition }}<br>
+                    <strong>Context:</strong> {{ result.Context }}<br>
+                    {% if result.Path %}
+                        <strong>Connected Path:</strong> {{ result.Path }}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No results found.</p>
+    {% endif %}
+</body>
+</html>
