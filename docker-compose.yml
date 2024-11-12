@@ -3,6 +3,7 @@ version: "3"
 services:
   db-xss:
     image: mysql:5.7
+    container_name: db
     ports:
       - '3310:3306'
     environment:
@@ -13,6 +14,12 @@ services:
       # MYSQL_HOST: ''
     networks:
       - openlxp
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$DB_ROOT_PASSWORD']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
     
   neo4j:
     image: neo4j:5.15.0
@@ -23,13 +30,20 @@ services:
       NEO4J_AUTH: neo4j/password
     networks:
       - openlxp
+    healthcheck:
+      test: wget http://localhost:7474 || exit 1
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+
   app:
-    container_name: openlxp-xss
+    container_name: app
     build:
       context: .
+    restart: always
     ports:
       - "8010:8020"
-    restart: always
     command: >
       sh -c "python manage.py makemigrations && python manage.py migrate && . /opt/app/start-app.sh"
     environment:
@@ -55,8 +69,10 @@ services:
       - ./app:/opt/app/openlxp-xss
       - huggingface_data:/opt/app/huggingface
     depends_on:
-      - neo4j
-      - db-xss
+      db-xss:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
     networks:
       - openlxp
 volumes:
