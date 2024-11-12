@@ -7,7 +7,7 @@ services:
       - '3310:3306'
     environment:
       MYSQL_DATABASE: "${DB_NAME}"
-      MYSQL_USER: "${DB_USER}"
+      MYSQL_USER: "${DB_USER}"   
       MYSQL_PASSWORD: "${DB_PASSWORD}"
       MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
       # MYSQL_HOST: ''
@@ -15,7 +15,7 @@ services:
       - openlxp
     
   neo4j:
-    image: neo4j:4.2.0
+    image: neo4j:5.15.0
     ports:
       - '7687:7687'
       - '7474:7474'
@@ -47,15 +47,24 @@ services:
       # BAD_HOST: "${BAD_HOST}"
       # OVERIDE_HOST: "${OVERIDE_HOST}"
       # STRATEGY: "${STRATEGY}"
-      NEO4J_URL: "bolt://neo4j:password@neo4j:7687"
+      SENTENCE_TRANSFORMERS_HOME: "${SENTENCE_TRANSFORMERS_HOME}"
+      HF_HOME: "${HF_HOME}"
+      TRANSFORMERS_CACHE: "${TRANSFORMERS_CACHE}"
+      HF_DATASETS_CACHE: "${HF_DATASETS_CACHE}"
     volumes:
       - ./app:/opt/app/openlxp-xss
+      - huggingface_data:/opt/app/huggingface
     depends_on:
+      - neo4j
       - db-xss
     networks:
       - openlxp
 volumes:
+  es_data:
+    driver: local
   data01:
+    driver: local
+  huggingface_data:
     driver: local
 networks:
   openlxp:
