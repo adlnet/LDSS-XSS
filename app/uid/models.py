@@ -127,13 +127,26 @@ class UIDGenerator:
         #self.generator_id = uid_value.generator_id  # Unique ID for this generator instance
         self.generator_id = f"0x{uid_value:08x}" 
         attempts = 0 # Initialize attempts here change as needed
-        
+        error_msg = None
+        new_uid = f"0x{uid_value:08x}"
+
+        # Check if UID is compliant
+        if not is_uid_compliant(new_uid):
+            #error_msg = f"Generated UID {new_uid} is malformed before loop."
+            print(f"Generated UID {new_uid} is malformed before loop.")
+        #logger.error(error_msg)  # Log the error as an issue before the loop
+            #raise RuntimeError(error_msg)
+            raise RuntimeError(f"Generated UID {new_uid} is malformed before loop.")
+        else:
+            logger.debug(f"Generated UID: {new_uid}")
+
         while True:
             new_uid = f"0x{uid_value:08x}"
             
             # Collision check
             while len(UIDNode.nodes.filter(uid=new_uid)) > 0:
-                logger.warning(f"UID collision detected for {new_uid}. Regenerating UID.")
+                logger.error(f"UID collision detected for {new_uid}. Regenerating UID.")
+                print(f"UID collision detected for {new_uid}. Regenerating UID.")
                 attempts += 1
 
                 # Adjust the UID by incrementing the base value directly to resolve the collision until a unique UID is found
@@ -143,23 +156,36 @@ class UIDGenerator:
             
             # Collision threshold, if too many attempts, break, reset attempts and increment base counter
             if attempts >= COLLISION_THRESHOLD:
-                logger.info(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
+                #logger.error(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
                 self.counter.increment()
                 attempts = 0
-                break
+                error_msg = f"Too many collisions for base UID {uid_value}. Incrementing counter."
+                print(f"Too many collisions for base UID {uid_value}. Incrementing counter.")
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)  # Raise error when collision threshold is exceeded
+                #break
             logger.info(f"Adjusted UID to {new_uid} to resolve collision.")
+            
         
             # Compliance check
             if not is_uid_compliant(new_uid):
-                logger.warning(f"Generated UID {new_uid} is not compliant with the expected pattern.")
-                continue
+                error_msg = f"Generated UID {new_uid} is not compliant with the expected pattern."
+                print(f"Generated UID {new_uid} is not compliant with the expected pattern.")
+                logger.warning(error_msg)
+                raise RuntimeError(error_msg)  # Raise error if the UID is non-compliant
+                #logger.warning(f"Generated UID {new_uid} is not compliant with the expected pattern.")
+                #continue
             
             # Sequential order check, if not sequential force increment and regenerate UID
             if hasattr (self, 'last_uid'):
                 if self.last_uid is not None and int(new_uid, 16) <= int(self.last_uid, 16):
-                    logger.warning(f"UID {new_uid} is not sequential. Regenerating UID.")
-                    self.counter.increment()
-                    continue
+                    #logger.warning(f"UID {new_uid} is not sequential. Regenerating UID.")
+                    #self.counter.increment()
+                    #continue
+                    error_msg = f"UID {new_uid} is not sequential. Regenerating UID."
+                    print(f"UID {new_uid} is not sequential. Regenerating UID.")
+                    logger.warning(error_msg)
+                    raise RuntimeError(error_msg)  # Raise error if UID is not sequential
             
             # Update and save the last issued UID
             self.last_uid = new_uid
@@ -168,7 +194,7 @@ class UIDGenerator:
 
             # Log the generated UID
             GeneratedUIDLog.objects.update_or_create(uid=new_uid, defaults={'generator_id': self.generator_id})
-
+            print (new_uid)
             return new_uid
     
 # Retrieve Last Generated UID
@@ -202,6 +228,9 @@ class UIDNode(DjangoNode):
         if existing_node:
             logger.info(f"Node already exists for namespace: {namespace}. Reusing existing UID: {existing_node.uid}.")
             return existing_node  # Return the existing node if found
+        
+        if not is_uid_compliant(uid):
+            raise RuntimeError(f"UID {uid} is malformed.")
         
         uid_node = cls(uid=uid, namespace=namespace, echelon_level=echelon_level)
         uid_node.save()
@@ -294,8 +323,9 @@ class LastGeneratedUID(models.Model):
     uid = models.CharField(max_length=255, unique=True)
 
     class Meta:
-        verbose_name = "Last Generated UID"
-        verbose_name_plural = "Last Generated UIDs"
+        #verbose_name = "Last Generated UID"
+        #verbose_name_plural = "Last Generated UIDs"
+        abstract = True
 
     @classmethod
     def save_last_generated_uid(cls, new_uid):

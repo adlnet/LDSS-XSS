@@ -7,9 +7,11 @@
 <body>
     <h1>Log File Content</h1>
     <pre>
-        {% for log in logs %}
-            {{ log }}
-        {% endfor %}
+        {% for line in log_content %}
+                <li>{{ line }}</li>
+            {% empty %}
+                <li>No logs available.</li>
+            {% endfor %}
     </pre>
     <a href="{% url 'uid:home' %}">Back to Home</a>
 </body>

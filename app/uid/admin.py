@@ -5,8 +5,8 @@ from .models import UIDCounterDjangoModel  # Import the Django model
 #from .models import LastGeneratedUID
 
 #@admin.register(LastGeneratedUID)
-#class LastGeneratedUIDAdmin(admin.ModelAdmin):
-#    list_display = ('uid')
+class LastGeneratedUIDAdmin(admin.ModelAdmin):
+    list_display = ('uid')
 
 # Admin registration for UIDCounterDjangoModel
 @admin.register(UIDCounterDjangoModel)
