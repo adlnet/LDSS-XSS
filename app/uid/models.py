@@ -284,10 +284,12 @@ class ProviderDjangoModel(models.Model):
     name = models.CharField(max_length=255, unique=True)
     # default_uid = StringProperty(required=True)
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> 'Provider':
         # Create or update the Neo4j Provider node
         provider = Provider.create_provider(self.name)
         super().save(*args, **kwargs)
+
+        return provider
 
     class Meta:
         verbose_name = "Provider"

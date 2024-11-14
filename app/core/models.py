@@ -16,12 +16,15 @@ from django_neomodel import DjangoNode
 from neomodel import StringProperty, UniqueIdProperty
 from model_utils.models import TimeStampedModel
 
+from uid.models import UIDNode, Provider, ProviderDjangoModel
+
 from core.management.utils.xss_helper import bleach_data_to_json
 from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty, exceptions, FloatProperty, Relationship
 from django_neomodel import DjangoNode
 
-logger = logging.getLogger('dict_config_logger')
+from typing import Tuple
 
+logger = logging.getLogger('dict_config_logger')
 
 data_type_matching = {
     'str': 'schema:Text',
@@ -434,6 +437,9 @@ class NeoTerm(DjangoNode):
     django_id = UniqueIdProperty()
     uid = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
+    term = StringProperty(default="UNASSIGNED")
+
+    uid_node = RelationshipTo('UIDNode', 'HAS_UID')
     definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
     context = RelationshipFrom('NeoContext', 'IS_A')
     alias = RelationshipFrom('NeoAlias', 'POINTS_TO')
@@ -442,14 +448,30 @@ class NeoTerm(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, uid: str) -> tuple['NeoTerm', bool]:
+    def get_or_create(cls, uid: str) -> Tuple['NeoTerm', bool]:
         try:
             term_node = cls.nodes.get_or_none(uid=uid)
             if term_node:
                 return term_node, False
-            term_node = NeoTerm(uid=uid)
+            
+            default_provider_name = term_node.lcvid
+            if not Provider.does_provider_exist(default_provider_name):
+                provider = ProviderDjangoModel(name=default_provider_name).save()
+            else:
+                provider = Provider.get_provider_by_name(default_provider_name)
+
+            term_uid_node = UIDNode.create_node(term_node.lcvid)
+            provider.uid.connect(term_uid_node)
+            provider.save()
+
+            term_node = NeoTerm(uid=term_uid_node.uid)
             term_node.save()
+            
+            term_node.uid_node.connect(term_uid_node)
+            term_node.save()
+
             return term_node, True
+
         except exceptions.NeomodelException as e:
             logger.error(f"NeoModel-related error while getting or creating term '{uid}': {e}")
             raise e
@@ -457,6 +479,28 @@ class NeoTerm(DjangoNode):
             logger.error(f"Unexpected error in get_or_create for term '{uid}': {e}")
             raise e
 
+    @classmethod
+    def create_new_term(cls, lcvid: str = None) -> 'NeoTerm':
+
+        term_node = NeoTerm() if lcvid is None else NeoTerm(lcvid=lcvid)
+        term_uid_node = UIDNode.create_node(term_node.lcvid)
+        term_node.uid = term_uid_node.uid
+        term_node.save()
+
+        term_node.uid_node.connect(term_uid_node)
+        term_node.save()
+
+        default_provider_name = term_node.lcvid
+        if not Provider.does_provider_exist(default_provider_name):
+            provider = ProviderDjangoModel(name=default_provider_name).save()
+        else:
+            provider = Provider.get_provider_by_name(default_provider_name)
+
+        provider.uid.connect(term_uid_node)
+        provider.save()
+
+        return term_node
+        
     def set_relationships(self, definition_node, context_node, alias_node):
         try:
             if alias_node:
@@ -486,7 +530,7 @@ class NeoAlias(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, alias: str) -> tuple['NeoAlias', bool]:
+    def get_or_create(cls, alias: str) -> Tuple['NeoAlias', bool]:
         """Retrieve an existing NeoAlias or create a new one if not found, with error handling."""
         try:
             alias_node = cls.nodes.get_or_none(alias=alias)
@@ -528,7 +572,7 @@ class NeoContext(DjangoNode):
         app_label = 'core'
     
     @classmethod
-    def get_or_create(cls, context: str) -> tuple['NeoContext', bool]: 
+    def get_or_create(cls, context: str) -> Tuple['NeoContext', bool]: 
         try:
             
             context_node = cls.nodes.get_or_none(context=context)
