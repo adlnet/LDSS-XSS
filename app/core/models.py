@@ -436,6 +436,7 @@ class TransformationLedger(TimeStampedModel):
 class NeoTerm(DjangoNode):
     django_id = UniqueIdProperty()
     uid = StringProperty(unique_index=True)
+    uid_chain = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
     term = StringProperty(default="UNASSIGNED")
 
@@ -498,6 +499,9 @@ class NeoTerm(DjangoNode):
 
         provider.uid.connect(term_uid_node)
         provider.save()
+
+        term_node.uid_chain = f"{provider.default_uid}-{term_node.uid}"
+        term_node.save()
 
         return term_node
         
