@@ -16,6 +16,7 @@ services:
     
   neo4j:
     image: neo4j:5.15.0
+    restart: always
     ports:
       - '7687:7687'
       - '7474:7474'
@@ -47,7 +48,7 @@ services:
       # BAD_HOST: "${BAD_HOST}"
       # OVERIDE_HOST: "${OVERIDE_HOST}"
       # STRATEGY: "${STRATEGY}"
-      NEO4J_URL: "bolt://neo4j:password@neo4j:7687"
+      #NEO4J_URL: "bolt://neo4j:password@neo4j:7687"
     volumes:
       - ./app:/opt/app/openlxp-xss
     depends_on:
