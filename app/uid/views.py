@@ -91,6 +91,8 @@ CALL {
 RETURN * LIMIT 100
 """
 
+# Globally Declare variable
+MAX_CHILDREN = 2**32 -1
 
 # Set up logging to capture errors and important information
 logger = logging.getLogger(__name__)
@@ -103,7 +105,55 @@ except RuntimeError as e:
     logger.error(f"Failed to initialize UIDGenerator: {e}")
     uid_generator = None  # Handle initialization failure appropriately
 
-MAX_CHILDREN = 2**32 -1
+def execute_neo4j_query(query, params):
+    query_str = query
+    try:
+        logger.info(f"Executing query: {query} with params: {params}")
+        results, meta = db.cypher_query(query_str, params)
+        return results
+    except Exception as e:
+        logger.error(f"Error executing Neo4j query: {e}")
+        return None
+
+# Django view for search functionality
+def search(request):
+    results = []
+    if request.method == 'POST':
+        form = SearchForm(request.POST)
+        if form.is_valid():
+            search_term = form.cleaned_data['search_term']
+            search_type = form.cleaned_data['search_type']
+
+            # Determine which query to use based on search type
+            if search_type == 'alias':
+                query = SEARCH_BY_ALIAS
+            elif search_type == 'definition':
+                query = SEARCH_BY_DEFINITION
+            elif search_type == 'context':
+                query = SEARCH_BY_CONTEXT
+            else:
+                query = GENERAL_GRAPH_SEARCH  # For 'general' search
+
+            # Execute the query
+            results_data = execute_neo4j_query(query, {"search_term": search_term})
+
+            if results_data:
+                results = [
+                    {
+                        "LCVID": record['row'][0],
+                        "Alias": record['row'][1],
+                        "Definition": record['row'][2],
+                        "Context": record['row'][3] if record['row'][3] else "No context"  # Handle missing context
+                    }
+                    for record in results_data['results'][0]['data']
+                ]
+            else:
+                results = [{'error': 'No results found or error querying Neo4j.'}]
+
+    else:
+        form = SearchForm()
+
+    return render(request, 'search.html', {'form': form, 'results': results})
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):
@@ -239,51 +289,3 @@ def export_to_postman(request, uid):
                 return JsonResponse({'error': 'UID not found'}, status=404)
 
     return JsonResponse(data)
-    
-def execute_neo4j_query(query, params):
-    query_str = query
-    try:
-        results, meta = db.cypher_query(query_str, params)
-        return results
-    except Exception as e:
-        return None
-
-# Django view for search functionality
-def search(request):
-    results = []
-    if request.method == 'POST':
-        form = SearchForm(request.POST)
-        if form.is_valid():
-            search_term = form.cleaned_data['search_term']
-            search_type = form.cleaned_data['search_type']
-
-            # Determine which query to use based on search type
-            if search_type == 'alias':
-                query = SEARCH_BY_ALIAS
-            elif search_type == 'definition':
-                query = SEARCH_BY_DEFINITION
-            elif search_type == 'context':
-                query = SEARCH_BY_CONTEXT
-            else:
-                query = GENERAL_GRAPH_SEARCH  # For 'general' search
-
-            # Execute the query
-            results_data = execute_neo4j_query(query, {"search_term": search_term})
-
-            if results_data:
-                results = [
-                    {
-                        "LCVID": record['row'][0],
-                        "Alias": record['row'][1],
-                        "Definition": record['row'][2],
-                        "Context": record['row'][3] if record['row'][3] else "No context"  # Handle missing context
-                    }
-                    for record in results_data['results'][0]['data']
-                ]
-            else:
-                results = [{'error': 'No results found or error querying Neo4j.'}]
-
-    else:
-        form = SearchForm()
-
-    return render(request, 'search.html', {'form': form, 'results': results})
