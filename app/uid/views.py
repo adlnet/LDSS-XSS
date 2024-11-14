@@ -13,31 +13,22 @@ import os
 from .forms import SearchForm
 import requests
 import urllib.parse
-#from .views import execute_neo4j_query, SEARCH_BY_ALIAS, SEARCH_BY_DEFINITION, SEARCH_BY_CONTEXT, GENERAL_GRAPH_SEARCH
 
 # Neo4j connection details
-#NEO4J_URI = "http://localhost:7474/db/data/transaction/commit"  # Replace with your Neo4j URL
-#NEO4J_AUTH = ('neo4j', 'password')  # Your Neo4j credentials
-
-#NEO4J_URL = os.getenv('NEO4J_URL', 'bolt://localhost:7687')  # Default URL if env var not set
 NEO4J_USERNAME = os.getenv('NEO4J_USERNAME', 'neo4j')        # Default username if env var not set
 NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD', 'password')      # Default password if env var not set
 NEO4J_HOST = os.getenv("NEO4J_HOST", "localhost")  # Default to localhost if not set
 NEO4J_PORT = os.getenv("NEO4J_PORT", "7687")  # Default to 7687 if not set
 
-# Set the connection using Neomodel's `db.set_connection` method
-#db.set_connection(f'neo4j://{NEO4J_USERNAME}:{NEO4J_PASSWORD}@{NEO4J_URL}')
-
 # URL-encode the password if it contains special characters
 encoded_password = urllib.parse.quote(NEO4J_PASSWORD)
 
 # Construct the correct Neo4j connection string
-#neo4j_connection_string = f'bolt://{NEO4J_USERNAME}:{NEO4J_PASSWORD}@{NEO4J_URL.split("//")[-1]}'
 connection_url = f"bolt://{NEO4J_USERNAME}:{encoded_password}@{NEO4J_HOST}:{NEO4J_PORT}"
+
 # Set the connection using Neomodel's `db.set_connection` method
-#db.set_connection(neo4j_connection_string)
 db.set_connection(connection_url)
-logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs 
+logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs to check Neo4J DB connection. 
 
 # Cypher Queries
 SEARCH_BY_ALIAS = """
@@ -198,24 +189,6 @@ def generate_uid_node(request: HttpRequest):
 
     return HttpResponse("{ 'uid': '" + str(local_uid) + "' }", content_type='application/json')
 
-#Potential code to retrieve parent and child nodes using the upstream and downstream capabilities
-#def get_upstream_providers(request, uid):
-    #try:
-      #  lcv_term = LCVTerm.nodes.get(uid=uid)
-     #   upstream_providers = lcv_term.get_upstream()
-    #    upstream_uids = [p.uid for p in upstream_providers]
-   #     return JsonResponse({'upstream_uids': upstream_uids})
-  #  except LCVTerm.DoesNotExist:
- #       return JsonResponse({'error': 'LCVTerm not found'}, status=404)
-
-#def get_downstream_lcv_terms(request, uid):
-    #try:
-        #provider = Provider.nodes.get(uid=uid)
-       # downstream_lcv_terms = provider.get_downstream()
-      #  downstream_uids = [l.uid for l in downstream_lcv_terms]
-     #   return JsonResponse({'downstream_uids': downstream_uids})
-    #except Provider.DoesNotExist:
-    #    return JsonResponse({'error': 'Provider not found'}, status=404)
 
 # Provider and LCVTerm (Otherwise alternative Parent and child) Now with collision detection on both.
 def create_provider(request):
