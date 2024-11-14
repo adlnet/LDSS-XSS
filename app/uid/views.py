@@ -37,7 +37,7 @@ connection_url = f"bolt://{NEO4J_USERNAME}:{encoded_password}@{NEO4J_HOST}:{NEO4
 # Set the connection using Neomodel's `db.set_connection` method
 #db.set_connection(neo4j_connection_string)
 db.set_connection(connection_url)
-
+logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs 
 
 # Cypher Queries
 SEARCH_BY_ALIAS = """
@@ -124,6 +124,9 @@ def search(request):
             search_term = form.cleaned_data['search_term']
             search_type = form.cleaned_data['search_type']
 
+            # Log form data for debugging
+            logger.info(f"Search form data: search_term={search_term}, search_type={search_type}")
+
             # Determine which query to use based on search type
             if search_type == 'alias':
                 query = SEARCH_BY_ALIAS
@@ -134,10 +137,14 @@ def search(request):
             else:
                 query = GENERAL_GRAPH_SEARCH  # For 'general' search
 
+            # Log the query and params being sent to Neo4j
+            logger.info(f"Executing query: {query} with params: {{'search_term': {search_term}}}")
+
             # Execute the query
             results_data = execute_neo4j_query(query, {"search_term": search_term})
 
             if results_data:
+                logger.info(f"Raw results data: {results_data}")
                 results = [
                     {
                         "LCVID": record['row'][0],
@@ -148,6 +155,7 @@ def search(request):
                     for record in results_data['results'][0]['data']
                 ]
             else:
+                logger.info("No results found.")
                 results = [{'error': 'No results found or error querying Neo4j.'}]
 
     else:
