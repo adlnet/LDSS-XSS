@@ -1,6 +1,32 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .definition-block {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 4px;
+    }
+    
+    .conjunction-highlight {
+        background-color: #ffeb3b;
+        padding: 1px 2px;
+        border-radius: 2px;
+    }
+    
+    .warning-text {
+        color: #856404;
+        background-color: #fff3cd;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <h1>Deconfliction Service</h1>
 <h2>Collisions</h2>
@@ -68,5 +94,32 @@
     </ul> 
     {% else %} 
         <p>No deviations found.</p> 
+    {% endif %}
+
+    <h2>Non-Atomic Definitions</h2>
+    {% if non_atomic_definitions %}
+        <div class="warning-text">
+            The following definitions contain coordinating conjunctions (and, or, but, etc.) 
+            and might benefit from being split into more atomic definitions.
+        </div>
+        
+        {% for def in non_atomic_definitions %}
+        <div class="definition-block">
+            <strong>Definition ID:</strong> {{ def.definition_id }}
+            <br>
+            <strong>Definition Text:</strong>
+            {% with text=def.definition_text %}
+                {% for word in text.split %}
+                    {% if word.lower in def.conjunctions %}
+                        <span class="conjunction-highlight">{{ word }}</span>
+                    {% else %}
+                        {{ word }}
+                    {% endif %}
+                {% endfor %}
+            {% endwith %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No non-atomic definitions found.</p>
     {% endif %}
 {% endblock %}
