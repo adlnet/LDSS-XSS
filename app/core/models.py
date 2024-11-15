@@ -440,6 +440,7 @@ class NeoTerm(DjangoNode):
     django_id = UniqueIdProperty()
     uid = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
+    status = StringProperty(choices={'accepted':'accepted', 'rejected':'rejected', 'pending':'pending'}, default='pending')
     definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
     context = RelationshipFrom('NeoContext', 'IS_A')
     alias = RelationshipFrom('NeoAlias', 'POINTS_TO')
@@ -608,6 +609,7 @@ class NeoContextDescription(DjangoNode):
             raise e
 
 class NeoDefinition(DjangoNode):
+    django_id = UniqueIdProperty()
     definition = StringProperty(required=True)
     embedding = ArrayProperty(FloatProperty(), required=False)
     context = RelationshipTo('NeoContext', 'VALID_IN')

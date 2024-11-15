@@ -1,0 +1,30 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+
+<form method="post">
+    {% csrf_token %}
+    
+    <div>
+        <h2>Definition 1</h2>
+        <h2> This definition has already been deemed locally unique</h2>
+        <h3>{{ definition_1.definition }}</h3>
+    </div>
+
+    <div>
+        <h2>Definition 2</h2>
+        <h3>{{ definition_2.definition }}</h3>
+        <p>Not a collision? Upgrade this definition to a unique term.</p>
+        <a href="{% url 'admin:admin_upgrade_definition' definition_2.definition %}" class="button">Upgrade to Unique Term</a>
+    </div>
+
+    <div>
+
+    <a href="{% url 'admin:admin_deconfliction_view' %}" class="button">Cancel Manual Decollision</a>
+
+    </div>
+</form>
+
+
+{%endblock%}
