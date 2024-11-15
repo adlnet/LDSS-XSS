@@ -15,19 +15,19 @@ import requests
 import urllib.parse
 
 # Neo4j connection details
-NEO4J_USERNAME = os.getenv('NEO4J_USERNAME', 'neo4j')        # Default username if env var not set
-NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD', 'password')      # Default password if env var not set
-NEO4J_HOST = os.getenv("NEO4J_HOST", "localhost")  # Default to localhost if not set
-NEO4J_PORT = os.getenv("NEO4J_PORT", "7687")  # Default to 7687 if not set
+#NEO4J_USERNAME = os.getenv('NEO4J_USERNAME', 'neo4j')        # Default username if env var not set
+#NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD', 'password')      # Default password if env var not set
+#NEO4J_HOST = os.getenv("NEO4J_HOST", "localhost")  # Default to localhost if not set
+#NEO4J_PORT = os.getenv("NEO4J_PORT", "7687")  # Default to 7687 if not set
 
 # URL-encode the password if it contains special characters
-encoded_password = urllib.parse.quote(NEO4J_PASSWORD)
+#encoded_password = urllib.parse.quote(NEO4J_PASSWORD)
 
 # Construct the correct Neo4j connection string
-connection_url = f"bolt://{NEO4J_USERNAME}:{encoded_password}@{NEO4J_HOST}:{NEO4J_PORT}"
+#connection_url = f"bolt://{NEO4J_USERNAME}:{encoded_password}@{NEO4J_HOST}:{NEO4J_PORT}"
 
 # Set the connection using Neomodel's `db.set_connection` method
-db.set_connection(connection_url)
+#db.set_connection(connection_url)
 logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs to check Neo4J DB connection. 
 
 # Cypher Queries
@@ -138,12 +138,17 @@ def search(request):
                 logger.info(f"Raw results data: {results_data}")
                 results = [
                     {
-                        "LCVID": record['row'][0],
-                        "Alias": record['row'][1],
-                        "Definition": record['row'][2],
-                        "Context": record['row'][3] if record['row'][3] else "No context"  # Handle missing context
+                        "LCVID": record.get('LCVID', 'No LCVID'),  # Use get() to avoid KeyError
+                        "Alias": record.get('Alias', 'No alias'),
+                        "Definition": record.get('Definition', 'No definition'),
+                        "Context": record.get('Context', 'No context')  # Handle missing context
                     }
-                    for record in results_data['results'][0]['data']
+                    #for record in results_data['results'][0]['data']
+                    for record in results_data:
+                        uid = record[0]
+                        alias = record[1]
+                        definition = record[2]
+                        context = record[3]
                 ]
             else:
                 logger.info("No results found.")

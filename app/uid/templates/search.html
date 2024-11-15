@@ -88,17 +88,29 @@
         </form>
 
         <!-- Display search results -->
-        {% if results %}
+        {% if results_data %}
             <div class="results-list">
                 <h3>Search Results</h3>
-                {% for result in results %}
-                    <div class="result-item">
-                        <strong>LCVID:</strong> {{ result.LCVID }}<br>
-                        <strong>Alias:</strong> {{ result.Alias }}<br>
-                        <strong>Definition:</strong> {{ result.Definition }}<br>
-                        <strong>Context:</strong> {{ result.Context|default:"No context" }}<br>
-                    </div>
-                {% endfor %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>Alias</th>
+                            <th>Definition</th>
+                            <th>Context</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in results_data %}
+                            <tr>
+                                <td>{{ record.0 }}</td>  <!-- UID -->
+                                <td>{{ record.1 }}</td>  <!-- Alias -->
+                                <td>{{ record.2 }}</td>  <!-- Definition -->
+                                <td>{{ record.3|default:"No context" }}</td>  <!-- Context (with default fallback) -->
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         {% endif %}
 
@@ -108,4 +120,3 @@
     </div>
 </body>
 </html>
-
