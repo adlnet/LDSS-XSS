@@ -28,7 +28,7 @@ import urllib.parse
 
 # Set the connection using Neomodel's `db.set_connection` method
 #db.set_connection(connection_url)
-logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs to check Neo4J DB connection. 
+#logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs to check Neo4J DB connection. 
 
 # Cypher Queries
 SEARCH_BY_ALIAS = """
