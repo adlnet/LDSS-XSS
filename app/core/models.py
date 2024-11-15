@@ -448,37 +448,37 @@ class NeoTerm(DjangoNode):
     class Meta:
         app_label = 'core'
     
-    @classmethod
-    def get_or_create(cls, uid: str) -> Tuple['NeoTerm', bool]:
-        try:
-            term_node = cls.nodes.get_or_none(uid=uid)
-            if term_node:
-                return term_node, False
+    # @classmethod
+    # def get_or_create(cls, uid: str) -> Tuple['NeoTerm', bool]:
+    #     try:
+    #         term_node = cls.nodes.get_or_none(uid=uid)
+    #         if term_node:
+    #             return term_node, False
             
-            default_provider_name = term_node.lcvid
-            if not Provider.does_provider_exist(default_provider_name):
-                provider = ProviderDjangoModel(name=default_provider_name).save()
-            else:
-                provider = Provider.get_provider_by_name(default_provider_name)
+    #         default_provider_name = term_node.lcvid
+    #         if not Provider.does_provider_exist(default_provider_name):
+    #             provider = ProviderDjangoModel(name=default_provider_name).save()
+    #         else:
+    #             provider = Provider.get_provider_by_name(default_provider_name)
 
-            term_uid_node = UIDNode.create_node(term_node.lcvid)
-            provider.uid.connect(term_uid_node)
-            provider.save()
+    #         term_uid_node = UIDNode.create_node(term_node.lcvid)
+    #         provider.uid.connect(term_uid_node)
+    #         provider.save()
 
-            term_node = NeoTerm(uid=term_uid_node.uid)
-            term_node.save()
+    #         term_node = NeoTerm(uid=term_uid_node.uid)
+    #         term_node.save()
             
-            term_node.uid_node.connect(term_uid_node)
-            term_node.save()
+    #         term_node.uid_node.connect(term_uid_node)
+    #         term_node.save()
 
-            return term_node, True
+    #         return term_node, True
 
-        except exceptions.NeomodelException as e:
-            logger.error(f"NeoModel-related error while getting or creating term '{uid}': {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error in get_or_create for term '{uid}': {e}")
-            raise e
+    #     except exceptions.NeomodelException as e:
+    #         logger.error(f"NeoModel-related error while getting or creating term '{uid}': {e}")
+    #         raise e
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error in get_or_create for term '{uid}': {e}")
+    #         raise e
 
     @classmethod
     def create_new_term(cls, lcvid: str = None) -> 'NeoTerm':
