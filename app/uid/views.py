@@ -14,23 +14,7 @@ from .forms import SearchForm
 import requests
 import urllib.parse
 
-# Neo4j connection details
-#NEO4J_USERNAME = os.getenv('NEO4J_USERNAME', 'neo4j')        # Default username if env var not set
-#NEO4J_PASSWORD = os.getenv('NEO4J_PASSWORD', 'password')      # Default password if env var not set
-#NEO4J_HOST = os.getenv("NEO4J_HOST", "localhost")  # Default to localhost if not set
-#NEO4J_PORT = os.getenv("NEO4J_PORT", "7687")  # Default to 7687 if not set
-
-# URL-encode the password if it contains special characters
-#encoded_password = urllib.parse.quote(NEO4J_PASSWORD)
-
-# Construct the correct Neo4j connection string
-#connection_url = f"bolt://{NEO4J_USERNAME}:{encoded_password}@{NEO4J_HOST}:{NEO4J_PORT}"
-
-# Set the connection using Neomodel's `db.set_connection` method
-#db.set_connection(connection_url)
-#logger.info(f"Connected to Neo4j at: {connection_url}") # Debug logs to check Neo4J DB connection. 
-
-# Cypher Queries
+# Cypher Search Queries
 SEARCH_BY_ALIAS = """
 WITH toLower($search_term) as search_term
 MATCH (a:NeoAlias)
@@ -82,7 +66,7 @@ CALL {
 RETURN * LIMIT 100
 """
 
-# Globally Declare variable
+# Globally Declare variable for children
 MAX_CHILDREN = 2**32 -1
 
 # Set up logging to capture errors and important information
