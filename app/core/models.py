@@ -493,11 +493,8 @@ class NeoTerm(DjangoNode):
         term_node.save()
 
         default_provider_name = term_node.lcvid
-        if not Provider.does_provider_exist(default_provider_name):
-            provider = ProviderDjangoModel(name=default_provider_name).save()
-        else:
-            provider = Provider.get_provider_by_name(default_provider_name)
-
+        provider = ProviderDjangoModel.ensure_provider_exists(default_provider_name)
+        
         provider.uid.connect(term_uid_node)
         provider.save()
 
