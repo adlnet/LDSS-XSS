@@ -9,12 +9,15 @@ from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog
 from rest_framework import viewsets
 from rest_framework.response import Response
 
+from django.contrib import messages
 import os
 from .forms import SearchForm
 import requests
 import urllib.parse
+from .models import Alias
+from .forms import AliasForm
 
-# Cypher Search Queries
+# Cypher Queries
 SEARCH_BY_ALIAS = """
 WITH toLower($search_term) as search_term
 MATCH (a:NeoAlias)
@@ -66,7 +69,7 @@ CALL {
 RETURN * LIMIT 100
 """
 
-# Globally Declare variable for children
+# Globally Declare variable
 MAX_CHILDREN = 2**32 -1
 
 # Set up logging to capture errors and important information
@@ -122,17 +125,12 @@ def search(request):
                 logger.info(f"Raw results data: {results_data}")
                 results = [
                     {
-                        "LCVID": record.get('LCVID', 'No LCVID'),  # Use get() to avoid KeyError
-                        "Alias": record.get('Alias', 'No alias'),
-                        "Definition": record.get('Definition', 'No definition'),
-                        "Context": record.get('Context', 'No context')  # Handle missing context
+                        "LCVID": record[0],  # Assuming record[0] is 'LCVID'
+                        "Alias": record[1],  # Assuming record[1] is 'Alias'
+                        "Definition": record[2],  # Assuming record[2] is 'Definition'
+                        "Context": record[3]  # Assuming record[3] is 'Context'
                     }
-                    #for record in results_data['results'][0]['data']
-                    for record in results_data:
-                        uid = record[0]
-                        alias = record[1]
-                        definition = record[2]
-                        context = record[3]
+                    for record in results_data  # Iterating over each record in results_data
                 ]
             else:
                 logger.info("No results found.")
@@ -142,6 +140,65 @@ def search(request):
         form = SearchForm()
 
     return render(request, 'search.html', {'form': form, 'results': results})
+
+# View for creating an alias
+#def create_alias(request):
+ #   if request.method == 'POST':
+  #      form = AliasForm(request.POST)
+   #     if form.is_valid():
+    #        alias_name = form.cleaned_data['alias']
+     #       context = form.cleaned_data.get('context', None)
+
+            # Create the Alias node in Neo4j
+      #      alias = Alias(alias=alias_name, context=context)
+       #     alias.save()  # Save the Alias node to Neo4j
+
+        #    return JsonResponse({'message': 'Alias created successfully!', 'alias': alias_name, 'context': context}, status=201)
+   # else:
+    #    form = AliasForm()
+
+    #return render(request, 'create_alias.html', {'form': form})
+#____________
+#def create_alias(request):
+ #   if request.method == 'POST':
+  #      form = AliasForm(request.POST)
+   #     if form.is_valid():
+    #        alias = form.save()  # This will create and save the Alias to Neo4j
+     #       messages.success(request, f"Alias '{alias.alias}' has been successfully created.")
+      #      form = AliasForm()  # Reset the form for another entry if needed
+       # else:
+        #    messages.error(request, "There was an error with the form. Please try again.")
+   # else:
+    #    form = AliasForm()
+
+    #return render(request, 'create_alias.html', {'form': form})
+
+def create_alias(request):
+    if request.method == 'POST':
+        form = AliasForm(request.POST)
+        if form.is_valid():
+            alias = form.save()  # This will create and save the Alias to Neo4j
+            
+            # Check if there was an error with the context linking
+            context_error = getattr(alias, 'context_error', None)
+
+            if context_error:
+                # If there was a context error, show a message
+                messages.error(request, f"Error: {context_error}")
+            else:
+                # If the alias was created successfully, show a success message
+                messages.success(request, f"Warning: No Context provided but Alias '{alias.alias}' has been successfully created.")
+
+            # Reset the form for another entry if needed
+            form = AliasForm()
+
+        else:
+            messages.error(request, "There was an error with the form. Please try again.")
+    else:
+        form = AliasForm()
+
+    return render(request, 'create_alias.html', {'form': form})
+
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):

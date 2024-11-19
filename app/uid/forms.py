@@ -1,11 +1,5 @@
 from django import forms
-from .models import Provider, LCVTerm  # Import Neo4j models directly
-#from .models import LastGeneratedUID
-
-#class LastGeneratedUIDForm(forms.ModelForm):
- #   class Meta:
-  #      model = LastGeneratedUID
-   #     fields = ['uid']
+from .models import Provider, LCVTerm, Alias  # Import Neo4j models directly
 
 class ProviderForm(forms.ModelForm):
     uid = forms.CharField(max_length=255)
@@ -44,3 +38,40 @@ class SearchForm(forms.Form):
     ], required=True, label="Search Type"
     )
     context = forms.CharField(label='Context', required=False, max_length=255)
+    
+# Alias with no Context  
+#class AliasForm(forms.Form):
+ #   alias = forms.CharField(max_length=255)
+  #  context = forms.CharField(max_length=255, required=False)  # context is optional
+
+#class AliasForm(forms.ModelForm):
+ #   class Meta:
+  #      model = Alias
+   #     fields = ['alias', 'context']  # Include alias and context fields
+
+#class AliasForm(forms.Form):
+ #   alias = forms.CharField(max_length=255, required=True)
+  #  context = forms.CharField(max_length=255, required=False)
+
+   # def save(self):
+        # Save directly to Neo4j via Neomodel
+    #    alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
+     #   alias.save()
+      #  return alias
+      
+class AliasForm(forms.Form):
+    alias = forms.CharField(max_length=255, required=True)  # The alias name
+    context = forms.CharField(max_length=255, required=False)  # Context as a string (the term's name)
+
+    def save(self):
+        # Create and save Alias
+        alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
+        alias.save()
+
+        # Optionally, if context is provided, link to the NeoTerm
+        if alias.context:
+            term = NeoTerm.nodes.get_or_none(name=alias.context)
+            if term:
+                alias.link_to_term(term)  # Link this alias to the found NeoTerm
+
+        return alias
