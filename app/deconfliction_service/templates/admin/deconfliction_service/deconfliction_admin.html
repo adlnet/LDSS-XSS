@@ -24,6 +24,9 @@
         border-radius: 4px;
         margin-bottom: 15px;
     }
+    .button-container {
+        margin-top: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -105,10 +108,10 @@
         
         {% for def in non_atomic_definitions %}
         <div class="definition-block">
-            <strong>Definition ID:</strong> {{ def.definition_id }}
+            <strong>Associated Term UID:</strong> {{def.term.uid}}
             <br>
             <strong>Definition Text:</strong>
-            {% with text=def.definition_text %}
+            {% with text=def.definition %}
                 {% for word in text.split %}
                     {% if word.lower in def.conjunctions %}
                         <span class="conjunction-highlight">{{ word }}</span>
@@ -117,7 +120,20 @@
                     {% endif %}
                 {% endfor %}
             {% endwith %}
+            <br>
+            {% if def.term.uid%}
+                <div class="button-container">
+                    <a href="{% url 'admin:deprecate_term_and_definition' def.term.uid %}" 
+                    class="button" 
+                    onclick="return confirm('Are you sure you want to deprecate this definition? This action cannot be undone.')">Deprecate Definition</a>
+                </div>
+            {% else %}
+            <div class="button-container">
+                <a class="button disabled">No Term to Deprecate</a>
+            </div>
+            {% endif %}
         </div>
+        
         {% endfor %}
     {% else %}
         <p>No non-atomic definitions found.</p>

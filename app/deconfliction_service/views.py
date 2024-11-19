@@ -12,6 +12,7 @@ from django.contrib import messages
 from neomodel import db
 import logging
 from django.urls import reverse
+from core.models import NeoTerm, NeoDefinition
 
 from .node_utils import create_vector_index, find_colliding_definition_nodes, find_similar_text_by_embedding, generate_embedding, evaluate_deconfliction_status, get_terms_with_multiple_definitions
 
@@ -210,25 +211,22 @@ def merge_duplicate_definitions(request, keep_id, remove_id):
 def get_non_atomic_definitions():
     """Find NeoDefinition nodes that contain coordinating conjunctions"""
     try:
-        # Get all definitions
-        cypher_query = """
-        MATCH (d:NeoDefinition)
-        RETURN id(d) as definition_id, d.definition as definition_text
-        """
-        results, _ = db.cypher_query(cypher_query)
-        
+
+        definitions = NeoDefinition.nodes.all()
+
         non_atomic_definitions = []
         
         coordinating_conjunctions = {
             ' and ', ' or ', ' but ', ' nor ', ' for ', ' yet ', ' so ', ' with '
         }
         
-        for definition_id, definition_text in results:
-            if not definition_text:
-                continue
-                
+        for definition in definitions:
+            associated_terms = definition.term.all()
+
+            term = associated_terms[0] if associated_terms else None
+        
             try:
-                padded_text = f' {definition_text} '
+                padded_text = f' {definition.definition} '
                 
                 found_conjunctions = [
                     conj.strip() 
@@ -236,25 +234,24 @@ def get_non_atomic_definitions():
                     if conj in padded_text.lower()
                 ]
                 
-                if found_conjunctions:
-                    # Get associated terms
-                    terms_query = """
-                    MATCH (t:NeoTerm)-[:POINTS_TO]->(d:NeoDefinition)
-                    WHERE id(d) = $definition_id
-                    RETURN collect({text: t.text, id: id(t)}) as terms
-                    """
-                    terms_results, _ = db.cypher_query(terms_query, {'definition_id': definition_id})
-                    terms = terms_results[0][0] if terms_results else []
+                if found_conjunctions and term.deprecated == False:
+                    # # Get associated terms
+                    # terms_query = """
+                    # MATCH (t:NeoTerm)-[:POINTS_TO]->(d:NeoDefinition)
+                    # WHERE id(d) = $definition_id
+                    # RETURN collect({text: t.text, id: id(t)}) as terms
+                    # """
+                    # terms_results, _ = db.cypher_query(terms_query, {'definition_id': definition_id})
+                    # terms = terms_results[0][0] if terms_results else []
                     
                     non_atomic_definitions.append({
-                        'definition_id': definition_id,
-                        'definition_text': definition_text,
-                        'terms': terms,
+                        'definition': definition.definition,
+                        'term': term,
                         'conjunctions': found_conjunctions
                     })
                     
             except Exception as e:
-                logger.error(f"Error processing definition {definition_id}: {e}")
+                logger.error(f"Error processing definition {definition}: {e}")
                 continue
                 
         return non_atomic_definitions
@@ -262,3 +259,32 @@ def get_non_atomic_definitions():
         logger.error(f"Error in getting atomic definitions: {e}")
         return []
     return redirect('admin:admin_deconfliction_view')
+
+
+def deprecate_term_and_definition(request, term_uid):
+
+    try:
+        term_node = NeoTerm.nodes.get_or_none(uid=term_uid)
+
+        if not term_node:
+            logger.warning(f"No term found with uid {term_uid}")
+            messages.warning(request, "No term found for this definition.")
+            return redirect('admin:admin_deconfliction_view')
+
+        # definition_node = term_node.definition.all()
+
+        # if not definition_node:
+        #     logger.warning(f"No definition found for term with uid {term_uid}")
+        #     messages.warning(request, "No definition found for this term.")
+        #     return redirect('admin:admin_deconfliction_view')
+        
+        term_node.deprecated = True
+        term_node.save()
+
+        messages.success(request, "Successfully deprecated definition.")
+        return redirect('admin:admin_deconfliction_view')
+
+    except Exception as e:
+        logger.error(f"Error deprecating definition: {e}")
+        messages.error(request, f"Error deprecating definition: {str(e)}")
+        return redirect('admin:admin_deconfliction_view')
