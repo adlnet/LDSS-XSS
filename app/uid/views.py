@@ -9,6 +9,68 @@ from .models import report_all_uids, report_uids_by_echelon, GeneratedUIDLog
 from rest_framework import viewsets
 from rest_framework.response import Response
 
+from django.contrib import messages
+import os
+from .forms import SearchForm
+import requests
+import urllib.parse
+from .models import Alias
+from .forms import AliasForm
+
+# Cypher Queries
+SEARCH_BY_ALIAS = """
+WITH toLower($search_term) as search_term
+MATCH (a:NeoAlias)
+WHERE toLower(a.alias) CONTAINS search_term
+MATCH (a)-[:POINTS_TO]->(term:NeoTerm)
+OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
+OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
+RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+LIMIT 100
+"""
+
+SEARCH_BY_DEFINITION = """
+WITH toLower($search_term) as search_term
+MATCH (def:NeoDefinition)
+WHERE toLower(def.definition) CONTAINS search_term
+MATCH (term:NeoTerm)-[:POINTS_TO]->(def)
+OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
+OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
+RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+LIMIT 100
+"""
+
+SEARCH_BY_CONTEXT = """
+WITH toLower($search_term) as search_term
+MATCH (ctx:NeoContext)
+WHERE toLower(ctx.context) CONTAINS search_term
+MATCH (ctx)-[:IS_A]->(term:NeoTerm)
+OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
+OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
+RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+LIMIT 100
+"""
+
+GENERAL_GRAPH_SEARCH = """
+WITH toLower($search_term) as search_term
+MATCH (n)
+WHERE (n:NeoAlias OR n:NeoDefinition OR n:NeoContext)  
+  AND (
+    (n:NeoAlias AND toLower(n.alias) CONTAINS search_term) OR
+    (n:NeoDefinition AND toLower(n.definition) CONTAINS search_term) OR
+    (n:NeoContext AND toLower(n.context) CONTAINS search_term)
+  )
+WITH n
+CALL {
+    WITH n
+    MATCH path = (n)-[*1..2]-(connected)
+    RETURN path
+}
+RETURN * LIMIT 100
+"""
+
+# Globally Declare variable
+MAX_CHILDREN = 2**32 -1
 
 # Set up logging to capture errors and important information
 logger = logging.getLogger(__name__)
@@ -21,7 +83,122 @@ except RuntimeError as e:
     logger.error(f"Failed to initialize UIDGenerator: {e}")
     uid_generator = None  # Handle initialization failure appropriately
 
-MAX_CHILDREN = 2**32 -1
+def execute_neo4j_query(query, params):
+    query_str = query
+    try:
+        logger.info(f"Executing query: {query} with params: {params}")
+        results, meta = db.cypher_query(query_str, params)
+        return results
+    except Exception as e:
+        logger.error(f"Error executing Neo4j query: {e}")
+        return None
+
+# Django view for search functionality
+def search(request):
+    results = []
+    if request.method == 'POST':
+        form = SearchForm(request.POST)
+        if form.is_valid():
+            search_term = form.cleaned_data['search_term']
+            search_type = form.cleaned_data['search_type']
+
+            # Log form data for debugging
+            logger.info(f"Search form data: search_term={search_term}, search_type={search_type}")
+
+            # Determine which query to use based on search type
+            if search_type == 'alias':
+                query = SEARCH_BY_ALIAS
+            elif search_type == 'definition':
+                query = SEARCH_BY_DEFINITION
+            elif search_type == 'context':
+                query = SEARCH_BY_CONTEXT
+            else:
+                query = GENERAL_GRAPH_SEARCH  # For 'general' search
+
+            # Log the query and params being sent to Neo4j
+            logger.info(f"Executing query: {query} with params: {{'search_term': {search_term}}}")
+
+            # Execute the query
+            results_data = execute_neo4j_query(query, {"search_term": search_term})
+
+            if results_data:
+                logger.info(f"Raw results data: {results_data}")
+                results = [
+                    {
+                        "LCVID": record[0],  # Assuming record[0] is 'LCVID'
+                        "Alias": record[1],  # Assuming record[1] is 'Alias'
+                        "Definition": record[2],  # Assuming record[2] is 'Definition'
+                        "Context": record[3]  # Assuming record[3] is 'Context'
+                    }
+                    for record in results_data  # Iterating over each record in results_data
+                ]
+            else:
+                logger.info("No results found.")
+                results = [{'error': 'No results found or error querying Neo4j.'}]
+
+    else:
+        form = SearchForm()
+
+    return render(request, 'search.html', {'form': form, 'results': results})
+
+# View for creating an alias
+#def create_alias(request):
+ #   if request.method == 'POST':
+  #      form = AliasForm(request.POST)
+   #     if form.is_valid():
+    #        alias_name = form.cleaned_data['alias']
+     #       context = form.cleaned_data.get('context', None)
+
+            # Create the Alias node in Neo4j
+      #      alias = Alias(alias=alias_name, context=context)
+       #     alias.save()  # Save the Alias node to Neo4j
+
+        #    return JsonResponse({'message': 'Alias created successfully!', 'alias': alias_name, 'context': context}, status=201)
+   # else:
+    #    form = AliasForm()
+
+    #return render(request, 'create_alias.html', {'form': form})
+#____________
+#def create_alias(request):
+ #   if request.method == 'POST':
+  #      form = AliasForm(request.POST)
+   #     if form.is_valid():
+    #        alias = form.save()  # This will create and save the Alias to Neo4j
+     #       messages.success(request, f"Alias '{alias.alias}' has been successfully created.")
+      #      form = AliasForm()  # Reset the form for another entry if needed
+       # else:
+        #    messages.error(request, "There was an error with the form. Please try again.")
+   # else:
+    #    form = AliasForm()
+
+    #return render(request, 'create_alias.html', {'form': form})
+
+def create_alias(request):
+    if request.method == 'POST':
+        form = AliasForm(request.POST)
+        if form.is_valid():
+            alias = form.save()  # This will create and save the Alias to Neo4j
+            
+            # Check if there was an error with the context linking
+            context_error = getattr(alias, 'context_error', None)
+
+            if context_error:
+                # If there was a context error, show a message
+                messages.error(request, f"Error: {context_error}")
+            else:
+                # If the alias was created successfully, show a success message
+                messages.success(request, f"Warning: No Context provided but Alias '{alias.alias}' has been successfully created.")
+
+            # Reset the form for another entry if needed
+            form = AliasForm()
+
+        else:
+            messages.error(request, "There was an error with the form. Please try again.")
+    else:
+        form = AliasForm()
+
+    return render(request, 'create_alias.html', {'form': form})
+
 
 # Create your views here.
 def generate_uid_node(request: HttpRequest):
@@ -58,24 +235,6 @@ def generate_uid_node(request: HttpRequest):
 
     return HttpResponse("{ 'uid': '" + str(local_uid) + "' }", content_type='application/json')
 
-#Potential code to retrieve parent and child nodes using the upstream and downstream capabilities
-#def get_upstream_providers(request, uid):
-    #try:
-      #  lcv_term = LCVTerm.nodes.get(uid=uid)
-     #   upstream_providers = lcv_term.get_upstream()
-    #    upstream_uids = [p.uid for p in upstream_providers]
-   #     return JsonResponse({'upstream_uids': upstream_uids})
-  #  except LCVTerm.DoesNotExist:
- #       return JsonResponse({'error': 'LCVTerm not found'}, status=404)
-
-#def get_downstream_lcv_terms(request, uid):
-    #try:
-        #provider = Provider.nodes.get(uid=uid)
-       # downstream_lcv_terms = provider.get_downstream()
-      #  downstream_uids = [l.uid for l in downstream_lcv_terms]
-     #   return JsonResponse({'downstream_uids': downstream_uids})
-    #except Provider.DoesNotExist:
-    #    return JsonResponse({'error': 'Provider not found'}, status=404)
 
 # Provider and LCVTerm (Otherwise alternative Parent and child) Now with collision detection on both.
 def create_provider(request):
