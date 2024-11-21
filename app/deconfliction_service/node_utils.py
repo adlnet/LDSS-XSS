@@ -110,10 +110,10 @@ def find_colliding_definition_nodes():
     cypher_query = """
     MATCH (n:NeoDefinition)-[:IS_COLLIDING_WITH]->(m:NeoDefinition)
     RETURN {
-        definition_1: n.definition,
-        id_1: id(n),
-        definition_2: m.definition,
-        id_2: id(m)
+        definition_1: m.definition,
+        id_1: id(m),
+        definition_2: n.definition,
+        id_2: id(n)
     } as collision
     """
 

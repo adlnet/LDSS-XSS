@@ -201,16 +201,26 @@ def merge_duplicate_definitions(request, keep_id, remove_id):
 def admin_upgrade_definition(request, definition):
 
     try:
+        logger.info('UPGRADING DEFINITION TO TERM')
         definition_node = NeoDefinition.nodes.get_or_none(definition=definition)
         if definition_node is None:
             logger.warning(f"Could not find definition with text {definition}")
             messages.warning(request, "Could not find definition with this text.")
             return redirect('admin:admin_deconfliction_view')
         
-        uid = uuid4()
+        logger.info(f"Upgrading definition '{definition}' to a term.")
 
-        term_node, _ = NeoTerm.get_or_create(uid=uid)
+        logger.info(f"Creating new term node.")
         
+        term_node = NeoTerm.create_new_term()
+        context_nodes = definition_node.context.all()
+
+        for context_node in context_nodes:
+            term_node.context.connect(context_node)
+            context_node.term.connect(term_node)
+        
+        logger.info(term_node)
+
         alias_nodes = definition_node.collision_alias.all()
 
         for alias_node in alias_nodes:

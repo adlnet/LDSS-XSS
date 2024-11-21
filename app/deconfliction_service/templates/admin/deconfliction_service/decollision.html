@@ -1,6 +1,17 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .button-container {
+    display: flex;
+
+    margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <form method="post">
@@ -8,7 +19,6 @@
     
     <div>
         <h2>Definition 1</h2>
-        <h2> This definition has already been deemed locally unique</h2>
         <h3>{{ definition_1.definition }}</h3>
     </div>
 
@@ -19,9 +29,9 @@
         <a href="{% url 'admin:admin_upgrade_definition' definition_2.definition %}" class="button">Upgrade to Unique Term</a>
     </div>
 
-    <div>
+    <div class="button-container">
 
-    <a href="{% url 'admin:admin_deconfliction_view' %}" class="button">Cancel Manual Decollision</a>
+    <a href="{% url 'admin:admin_deconfliction_view' %}" class="button">Back</a>
 
     </div>
 </form>
