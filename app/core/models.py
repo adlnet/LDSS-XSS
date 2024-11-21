@@ -19,7 +19,7 @@ from model_utils.models import TimeStampedModel
 from uid.models import UIDNode, Provider, ProviderDjangoModel
 
 from core.management.utils.xss_helper import bleach_data_to_json
-from neomodel import StringProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty, exceptions, FloatProperty, Relationship
+from neomodel import StringProperty, BooleanProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, ArrayProperty, exceptions, FloatProperty, Relationship
 from django_neomodel import DjangoNode
 
 from typing import Tuple
@@ -439,7 +439,7 @@ class NeoTerm(DjangoNode):
     uid_chain = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
     term = StringProperty(default="UNASSIGNED")
-
+    deprecated = BooleanProperty(default=False)
     uid_node = RelationshipTo('UIDNode', 'HAS_UID')
     definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
     context = RelationshipFrom('NeoContext', 'IS_A')
