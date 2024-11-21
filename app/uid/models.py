@@ -22,49 +22,12 @@ def check_neo4j_connection():
             time.sleep(1)  # Wait before retrying
     return False
 
-#class Alias(StructuredNode):
- #   alias = StringProperty(unique_index=True)  # The alias name
-  #  context = StringProperty(required=False, default=None)  # Optional context
-   # points_to = RelationshipTo('NeoTerm', 'POINTS_TO')
-
-    #def __str__(self):
-     #   return self.alias
-
-# Define the NeoTerm class
-#class NeoTerm(StructuredNode):
- #   name = StringProperty(unique_index=True)  # The name of the term
-  #  definition = StringProperty()  # A definition of the term (optional)
-    
-   # def __str__(self):
-    #    return self.name
-
-#class Alias(StructuredNode):
- #   alias = StringProperty(unique_index=True)  # The alias name
-  #  context = StringProperty(required=False, default=None)  # Optional context
-   # points_to = RelationshipTo('NeoTerm', 'POINTS_TO')  # The relationship to NeoTerm
-
-    #def __str__(self):
-     #   return self.alias
-
-    #def link_to_term(self, neo_term):
-     #   """Link this alias to a NeoTerm."""
-      #  if isinstance(neo_term, NeoTerm):
-       #     self.points_to.connect(neo_term)
-
-    #def save(self, *args, **kwargs):
-     #   """Override the save method to automatically link the alias to a NeoTerm if context is provided."""
-      #  super(Alias, self).save(*args, **kwargs)
-
-       # if self.context:  # If context is provided, find the NeoTerm by name and link it
-        #    term = NeoTerm.nodes.get_or_none(name=self.context)
-         #   if term:
-          #      self.link_to_term(term)
-
-
+# Alias class incase you create and alias with no context
 class Alias(StructuredNode):
     alias = StringProperty(unique_index=True)  # The alias name
     context = StringProperty(required=False, default=None)  # Optional context
     points_to = RelationshipTo('NeoTerm', 'POINTS_TO')  # The relationship to NeoTerm
+    context_error = StringProperty(required=False)  # Optional field to store error message
 
     def __str__(self):
         return self.alias
@@ -81,16 +44,26 @@ class Alias(StructuredNode):
         # Call the parent class save method
         super(Alias, self).save(*args, **kwargs)
 
-        if self.context:  # If context is provided, find the NeoTerm by name and link it
-            term = NeoTerm.nodes.get_or_none(name=self.context)
+        if self.context:
+            # Get or create the NeoTerm based on the context
+            term, created = NeoTerm.get_or_create(uid=self.context)
+            if term:
+                # Set relationships for the NeoTerm, including the alias
+                term.set_relationships(definition_node, context_node, self)
+            else:
+                context_error = f"No matching NeoTerm found for context: {self.context}"
+        else:
+            # If no context is provided, link to a default NeoTerm (first available NeoTerm)
+            term = NeoTerm.nodes.first()  # You can change this to a specific fallback logic
             if term:
                 self.link_to_term(term)
             else:
-                context_error = f"No matching NeoTerm found for context: {self.context}"
+                context_error = "No NeoTerm available to link."
 
         # If an error was encountered, raise it so it can be caught in the view or returned to the form
         if context_error:
             self.context_error = context_error  # Store the error message in the instance
+            self.save()
         
         return context_error  # Return the error message, if any
 
