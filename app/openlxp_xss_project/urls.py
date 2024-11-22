@@ -27,5 +27,5 @@ urlpatterns = [
     path('uid/', include('uid.urls')),
     ## Downstream to send terms
     path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
-    path('receive-terms/', views.ReceiveTermsFromExternalAPI.as_view(), name='receive-terms'),
+    path('requested-terms/', views.RequestTermsFromExternalAPI.as_view(), name='requested-terms'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
