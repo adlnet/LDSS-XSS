@@ -14,9 +14,9 @@ class DeconflictionAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('', self.admin_site.admin_view(self.redirect_to_deconfliction),
-                 name='deconfliction_service_deconfliction_changelist'),
-            path('deconfliction/', 
+            # path('', self.admin_site.admin_view(self.redirect_to_deconfliction),
+            #      name='deconfliction_service_deconfliction_changelist'),
+            path('', 
                  self.admin_site.admin_view(views.deconfliction_admin_view),
                  name='admin_deconfliction_view'),
             path('resolve-collision/<str:definition_1>/<str:definition_2>/',
@@ -26,6 +26,7 @@ class DeconflictionAdmin(admin.ModelAdmin):
                 views.merge_duplicate_definitions, 
                 name='admin_merge_definitions'),
             path('upgrade-definition/<str:definition>', views.admin_upgrade_definition, name='admin_upgrade_definition'),
+            path('deprecate/<str:term_uid>/', views.deprecate_term_and_definition, name='deprecate_term_and_definition'),
         ]
         return custom_urls + urls
     
