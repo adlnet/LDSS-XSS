@@ -2,7 +2,7 @@ from typing import Type, Any
 from django_neomodel import DjangoNode
 from neomodel import db
 import numpy as np
-#import torch
+import torch
 from sentence_transformers import SentenceTransformer, util
 import logging
 from core.constants import MODEL_VECTOR_DIMENSION

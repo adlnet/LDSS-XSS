@@ -13,18 +13,10 @@ urlpatterns = [
     path('success/', views.success_view, name='success'),
     path('export/<str:uid>/', export_to_postman, name='export_to_postman'),
     path('report/<str:echelon_level>/', generate_report, name='generate_report'),
-<<<<<<< HEAD
-    path('api/uid-repo/', UIDRepoViewSet.as_view({'get': 'list'}), name='uid-repo'),
-    path('search/', views.search, name='search'),  # For the search endpoint
-    #path('search/', views.search_view, name='search'),  # Maps the search endpoint
-    path('create_alias/', views.create_alias, name='create_alias'),
-=======
 
     path('api/log', report_generated_uids, name='uid-generated'),
     path('api/generate', api_generate_uid, name='uid-generated'),
     
     # path('api/uid-repo/', UIDRepoViewSet.as_view({'get': 'list'}), name='uid-repo'),
     # path('api/uid/all', UIDTermViewSet.as_view({'get': 'list'}), name='uid-all'),
->>>>>>> 6a601dac0354438e1cedd7a6ac4c2fe85966d438
 ]
-

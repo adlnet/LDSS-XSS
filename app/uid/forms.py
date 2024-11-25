@@ -1,10 +1,6 @@
 from django import forms
-<<<<<<< HEAD
-from .models import Provider, LCVTerm, Alias  # Import Neo4j models directly
-=======
 from .models import Provider, LCVTerm, UIDRequestToken # Import Neo4j models directly
 from uuid import uuid4
->>>>>>> 6a601dac0354438e1cedd7a6ac4c2fe85966d438
 #from .models import LastGeneratedUID
 
 #class LastGeneratedUIDForm(forms.ModelForm):
@@ -73,57 +69,4 @@ class LCVTermForm(forms.ModelForm):
     class Meta:
         model = LCVTerm
         #fields = ['uid', 'term', 'echelon_level']
-<<<<<<< HEAD
-        fields = ['term', 'echelon_level'] # UID is self Generated
-        
-# Search Forms
-class SearchForm(forms.Form):
-    search_term = forms.CharField(max_length=255, required=True, label="Search Term")
-    search_type = forms.ChoiceField(choices=[
-        ('general', 'General Search'),
-        ('alias', 'Search by Alias'),
-        ('definition', 'Search by Definition'),
-        ('context', 'Search by Context'),
-    ], required=True, label="Search Type"
-    )
-    context = forms.CharField(label='Context', required=False, max_length=255)
-    
-# Alias with no Context  
-#class AliasForm(forms.Form):
- #   alias = forms.CharField(max_length=255)
-  #  context = forms.CharField(max_length=255, required=False)  # context is optional
-
-#class AliasForm(forms.ModelForm):
- #   class Meta:
-  #      model = Alias
-   #     fields = ['alias', 'context']  # Include alias and context fields
-
-#class AliasForm(forms.Form):
- #   alias = forms.CharField(max_length=255, required=True)
-  #  context = forms.CharField(max_length=255, required=False)
-
-   # def save(self):
-        # Save directly to Neo4j via Neomodel
-    #    alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
-     #   alias.save()
-      #  return alias
-      
-class AliasForm(forms.Form):
-    alias = forms.CharField(max_length=255, required=True)  # The alias name
-    context = forms.CharField(max_length=255, required=False)  # Context as a string (the term's name)
-
-    def save(self):
-        # Create and save Alias
-        alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
-        alias.save()
-
-        # Optionally, if context is provided, link to the NeoTerm
-        if alias.context:
-            term = NeoTerm.nodes.get_or_none(name=alias.context)
-            if term:
-                alias.link_to_term(term)  # Link this alias to the found NeoTerm
-
-        return alias
-=======
         fields = ['provider_name', 'term', 'echelon', 'structure'] # UID is self Generated
->>>>>>> 6a601dac0354438e1cedd7a6ac4c2fe85966d438
