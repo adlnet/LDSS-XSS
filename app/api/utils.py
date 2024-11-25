@@ -3,7 +3,6 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 from django.http import HttpResponse
 import logging
-from core.models import NeoTerm
 
 logger = logging.getLogger('dict_config_logger')
 REQUIRED_COLUMNS = ['Term', 'Definition', 'Context', 'Context Description']
@@ -46,12 +45,11 @@ def create_terms_from_csv(df):
         for index, row in df.iterrows():
             logger.info(f"This is the term for index { index }  {row['Term']}")
 
-            term = NeoTerm.create_new_term()
-            term.term = row['Term']
-            term.definition = row['Definition']
-            term.context = row['Context']
-            # term.context_description = row['Context Description']
-
+            term = NeoTerm(
+                        term = row['Term'],
+                        definition = row['Definition'],
+                        context = row['Context'],
+                        context_description = row['Context Description'])
             term.save()
         logger.info(f'{len(df)} terms created from CSV file.')
 

@@ -2,9 +2,6 @@ from .models import NeoAlias, NeoDefinition, NeoContext, NeoContextDescription, 
 from deconfliction_service.views import run_deconfliction
 import logging
 from uuid import uuid4
-
-from uid.models import UIDNode
-
 logger = logging.getLogger('dict_config_logger')
 
 def run_node_creation(definition: str, context: str, context_description: str, alias: str=None):
@@ -27,8 +24,9 @@ def run_node_creation(definition: str, context: str, context_description: str, a
 
 def run_unique_definition_creation(definition, context, context_description, definition_embedding, alias):
     try:
-        # uid = uuid4()
-        term_node = NeoTerm.create_new_term()
+        uid = uuid4()
+
+        term_node, _ = NeoTerm.get_or_create(uid=uid)
 
         alias_node = None
         if alias:
