@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
 import requests
+from neomodel import db
 
 
 from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
@@ -478,6 +479,10 @@ class RequestTermsFromExternalAPI(APIView):
     ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
     permission_classes = [AllowAny]
     
+
+    def post(self, request, *args, **kwargs):
+        return JsonResponse({"message": "POST request received successfully"}, status=200)
+    
     def post(self, request, *args, **kwargs):
         logger.debug(f"Raw request data: {request.body.decode('utf-8')}")  # Log the raw request body
         try:
@@ -523,6 +528,9 @@ class RequestTermsFromExternalAPI(APIView):
             # Send the GET request to the external API
             response = requests.post(f"{api_url}/{api_endpoint}", json=data, auth=auth)
             
+
+
+
             if response.status_code == 200:
                 terms_data = response.json()  # Assuming the API returns JSON data
                 
@@ -544,5 +552,80 @@ class RequestTermsFromExternalAPI(APIView):
             return JsonResponse({'error': f"Error connecting to the external API: {str(e)}"}, status=500)
 #####
 #
+## Param - APIVIEW is a django rest framework class that helps with API, with built in methods like get, post, put, delete
+## Response to requested terms from external API.
+class RequestForTermsFromExternalAPI(APIView):
+    
+    logger.debug("Hit the RequestFORTermsFROMExternalAPI view POST method")  # Simple check
+    
+    ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
+    permission_classes = [AllowAny]
 
+    def post(self, request, *args, **kwargs):
+        #return JsonResponse({"message": "POST request received successfully"}, status=200)
+        try:
+
+            try:
+                data = json.loads(request.body.decode('utf-8'))  # Manually parse JSON if necessary
+                logger.debug(f"Parsed request data: {data}")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}")
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            # Extract the data sent in the request body (this will be a JSON payload)
+            data = request.data
+    
+            logger.debug(f"Received request data: {data}")  # Add a log to check the incoming data
+
+            # Extract search term from request
+            search_term = data.get('search_term')
+            if not search_term:
+                return JsonResponse({'error': 'search_term parameter is required'}, status=400)
+
+            # Log the search term for debugging
+            logger.debug(f"Searching for term: {search_term}")
+
+            # Neo4j query to search for matching terms
+            query = """
+            MATCH (term:NeoTerm)-[:POINTS_TO]->(definition:NeoDefinition)
+            WHERE term.term CONTAINS $search_term
+            RETURN term, definition
+            """
+            # Execute the query
+            results, meta = db.cypher_query(query, {'search_term': search_term})
+
+            # Parse the query results
+            terms_data = []
+            for term, definition in results:
+                terms_data.append({
+                    'term': term.get('term', ''),  # Safely access the term name
+                    'uid': term.get('uid', ''),  # Assuming terms have a unique ID (uid)
+                    'definition': definition.get('definition', ''),  # Definition text
+                })
+
+            # Return the results as JSON
+            if terms_data:
+                return JsonResponse({'terms': terms_data}, status=200)
+            else:
+                return JsonResponse({'message': 'No terms found for the provided search_term'}, status=404)
             
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
+            return JsonResponse({'error': f"An error occurred: {str(e)}"}, status=500)
+        
+            api_url = data.get('url')  # URL to connect to the external API
+            api_endpoint = data.get('endpoint')  # Specific endpoint for the API
+            username = data.get('username')  # Username for basic authenticatiofn
+            password = data.get('password')  # Password for basic authentication
+            search_term = data.get('search_term')  # Search term to filter the terms (if provided)
+            ## Example search terms. Do we know all of the params for querry required yet? 
+            ## date_created = data.get('date_created')  # Start date for filtering
+            ## date_until = data.get('date_until')  # End date for filtering
+
+            #SO this works. its simple and basic but here it is, we can receive and understand the request. NOW we need to search for the terms and return them. - MB
+            # We can do that with a different API. But this one should call a function to search for the terms
+
+            #return JsonResponse({'message': f'Request for {search_term} received'}, status=200)  
+            #now take the search term and query our db if it is there
+            #search_term = data.get('search_term')
+            #if search_term:
+                #terms = NeoTerm.nodes.filter(term__icontains=search_term)
