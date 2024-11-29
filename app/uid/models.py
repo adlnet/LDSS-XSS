@@ -283,6 +283,34 @@ class ProviderDjangoModel(models.Model):
     # uid = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=255, unique=True)
     # default_uid = StringProperty(required=True)
+    
+    @classmethod
+    def does_django_provider_exist(cls, provider_name: str):
+        result = ProviderDjangoModel.objects.filter(name=provider_name).first()
+        return result is not None
+    
+    @classmethod
+    def ensure_provider_exists(cls, provider_name: str) -> 'Provider':
+        """
+        Ensure that this Provider exists as both a Django Model (for the admin view)
+        and as a graph node.  The graph node portion is handled by the save() override,
+        which gives that node as an extended return value.
+        """
+        if not Provider.does_provider_exist(provider_name):
+            django_model_exists = ProviderDjangoModel.does_django_provider_exist(provider_name)
+            if django_model_exists:
+                provider = ProviderDjangoModel.get_by_name(provider_name).save()
+            else:
+                provider = ProviderDjangoModel(name=provider_name).save()
+        else:
+            return Provider.get_provider_by_name(provider_name)
+
+        assert isinstance(provider, Provider)
+        return provider
+
+    @classmethod
+    def get_by_name(cls, provider_name: str):
+        return ProviderDjangoModel.objects.get(name=provider_name)
 
     def save(self, *args, **kwargs) -> 'Provider':
         # Create or update the Neo4j Provider node
@@ -331,13 +359,7 @@ class UIDRequestNode(DjangoNode):
     @classmethod
     def create_requested_uid(cls, provider_name: str):
         
-        provider_already_exists = Provider.does_provider_exist(provider_name)
-
-        if not provider_already_exists:
-            new_provider = ProviderDjangoModel(name=provider_name)
-            new_provider.save()
-
-        provider = Provider.get_provider_by_name(provider_name)
+        provider = ProviderDjangoModel.ensure_provider_exists(provider_name)
         assert isinstance(provider, Provider)
                 
         uid_node = UIDNode.create_node(owner_uid=provider.default_uid)

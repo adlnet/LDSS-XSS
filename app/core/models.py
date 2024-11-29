@@ -438,6 +438,7 @@ class NeoTerm(DjangoNode):
     uid = StringProperty(unique_index=True)
     uid_chain = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
+    status = StringProperty(choices={'accepted':'accepted', 'rejected':'rejected', 'pending':'pending'}, default='pending')
     term = StringProperty(default="UNASSIGNED")
     deprecated = BooleanProperty(default=False)
     uid_node = RelationshipTo('UIDNode', 'HAS_UID')
@@ -448,37 +449,6 @@ class NeoTerm(DjangoNode):
     class Meta:
         app_label = 'core'
     
-    # @classmethod
-    # def get_or_create(cls, uid: str) -> Tuple['NeoTerm', bool]:
-    #     try:
-    #         term_node = cls.nodes.get_or_none(uid=uid)
-    #         if term_node:
-    #             return term_node, False
-            
-    #         default_provider_name = term_node.lcvid
-    #         if not Provider.does_provider_exist(default_provider_name):
-    #             provider = ProviderDjangoModel(name=default_provider_name).save()
-    #         else:
-    #             provider = Provider.get_provider_by_name(default_provider_name)
-
-    #         term_uid_node = UIDNode.create_node(term_node.lcvid)
-    #         provider.uid.connect(term_uid_node)
-    #         provider.save()
-
-    #         term_node = NeoTerm(uid=term_uid_node.uid)
-    #         term_node.save()
-            
-    #         term_node.uid_node.connect(term_uid_node)
-    #         term_node.save()
-
-    #         return term_node, True
-
-    #     except exceptions.NeomodelException as e:
-    #         logger.error(f"NeoModel-related error while getting or creating term '{uid}': {e}")
-    #         raise e
-    #     except Exception as e:
-    #         logger.error(f"Unexpected error in get_or_create for term '{uid}': {e}")
-    #         raise e
 
     @classmethod
     def create_new_term(cls, lcvid: str = None) -> 'NeoTerm':
@@ -492,11 +462,8 @@ class NeoTerm(DjangoNode):
         term_node.save()
 
         default_provider_name = term_node.lcvid
-        if not Provider.does_provider_exist(default_provider_name):
-            provider = ProviderDjangoModel(name=default_provider_name).save()
-        else:
-            provider = Provider.get_provider_by_name(default_provider_name)
-
+        provider = ProviderDjangoModel.ensure_provider_exists(default_provider_name)
+        
         provider.uid.connect(term_uid_node)
         provider.save()
 
@@ -650,8 +617,10 @@ class NeoContextDescription(DjangoNode):
             raise e
 
 class NeoDefinition(DjangoNode):
+    django_id = UniqueIdProperty()
     definition = StringProperty(required=True)
     embedding = ArrayProperty(FloatProperty(), required=False)
+    rejected = BooleanProperty(default=False)
     context = RelationshipTo('NeoContext', 'VALID_IN')
     context_description = RelationshipFrom('NeoContextDescription', 'BASED_ON')
     term = RelationshipFrom('NeoTerm', 'POINTS_TO')

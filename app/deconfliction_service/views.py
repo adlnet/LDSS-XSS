@@ -15,7 +15,7 @@ from django.urls import reverse
 from core.models import NeoTerm, NeoDefinition
 
 from .node_utils import create_vector_index, find_colliding_definition_nodes, find_similar_text_by_embedding, generate_embedding, evaluate_deconfliction_status, get_terms_with_multiple_definitions
-
+from core.models import NeoDefinition, NeoTerm
 logger = logging.getLogger('dict_config_logger')
 
 
@@ -100,29 +100,32 @@ def resolve_duplicate(request, term_id, definition_id):
         messages.error(request, f"Error resolving duplicate: {str(e)}")
         return redirect('admin:admin_deconfliction_view')
 
-def resolve_collision(request, id_1, id_2):
+def resolve_collision(request, definition_1, definition_2):
     try:
-        cypher_query = """
-        MATCH (n:NeoDefinition)-[r:IS_COLLIDING_WITH]-(m:NeoDefinition)
-        WHERE id(n) = $id_1 AND id(m) = $id_2
-        DELETE r
-        RETURN count(r) as deleted_relationships
-        """
+        logger.info(f"Resolving collision between definitions {definition_1} and {definition_2}")
+        definition_node_1 = NeoDefinition.nodes.get_or_none(definition=definition_1)
+        definition_node_2 = NeoDefinition.nodes.get_or_none(definition=definition_2)
+        if definition_node_1 is None or definition_node_2 is None:
+            logger.warning(f"Could not find definitions with definitions {definition_1} and {definition_2}")
+            messages.warning(request, "Could not find definitions with these IDs.")
+            return redirect('admin:admin_deconfliction_view')
         
-        results, _ = db.cypher_query(cypher_query, {'id_1': id_1, 'id_2': id_2})
-        deleted_count = results[0][0]
-        
-        if deleted_count > 0:
-            logger.info(f"Successfully removed collision relationship between nodes {id_1} and {id_2}")
-            messages.success(request, "Successfully resolved the collision.")
-        else:
-            logger.warning(f"No collision relationship found between nodes {id_1} and {id_2}")
-            messages.warning(request, "No collision relationship found between these definitions.")
+        term_1 = definition_node_1.term.all()
+        term_2 = definition_node_2.term.all()
+        logger.info(term_1)
+        logger.info(term_2)
+        context = {
+            'definition_1': definition_node_1,
+            'definition_2': definition_node_2,
+            'term_1': term_1,
+            'term_2': term_2
+        }
+      
             
-        return redirect('admin:admin_deconfliction_view')
+        return render(request,'admin/deconfliction_service/decollision.html', context)
         
     except Exception as e:
-        logger.error(f"Error resolving collision between nodes {id_1} and {id_2}: {e}")
+        logger.error(f"Error resolving collision between nodes {definition_1} and {definition_2}: {e}")
         messages.error(request, f"Error resolving collision: {str(e)}")
         return redirect('admin:admin_deconfliction_view')
 
@@ -207,6 +210,49 @@ def merge_duplicate_definitions(request, keep_id, remove_id):
         messages.error(request, f"Error merging definitions: {str(e)}")
     
     return redirect('admin:admin_deconfliction_view')
+
+def admin_upgrade_definition(request, definition):
+
+    try:
+        logger.info('UPGRADING DEFINITION TO TERM')
+        definition_node = NeoDefinition.nodes.get_or_none(definition=definition)
+        if definition_node is None:
+            logger.warning(f"Could not find definition with text {definition}")
+            messages.warning(request, "Could not find definition with this text.")
+            return redirect('admin:admin_deconfliction_view')
+        
+        logger.info(f"Upgrading definition '{definition}' to a term.")
+
+        logger.info(f"Creating new term node.")
+        
+        term_node = NeoTerm.create_new_term()
+        context_nodes = definition_node.context.all()
+
+        for context_node in context_nodes:
+            term_node.context.connect(context_node)
+            context_node.term.connect(term_node)
+        
+        logger.info(term_node)
+
+        alias_nodes = definition_node.collision_alias.all()
+
+        for alias_node in alias_nodes:
+            term_node.alias.connect(alias_node)
+            alias_node.term.connect(term_node)
+        
+        term_node.definition.connect(definition_node)
+        definition_node.term.connect(term_node)
+
+        definition_node.collision_alias.disconnect_all()
+        definition_node.collision.disconnect_all()
+        
+        logger.info(f"Successfully upgraded definition '{definition}' to a term.")
+        messages.success(request, f"Definition successfully upgraded to a term.")
+        return redirect('admin:admin_deconfliction_view')
+    except Exception as e:
+        logger.error(f"Error upgrading definition '{definition}': {e}")
+        messages.error(request, "Error upgrading definition.")
+        return redirect('admin:admin_deconfliction_view')
 
 def get_non_atomic_definitions():
     """Find NeoDefinition nodes that contain coordinating conjunctions"""
