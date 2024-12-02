@@ -1,17 +1,26 @@
 from django.contrib import admin, messages
+from django.shortcuts import render, redirect
+
+from deconfliction_service.node_utils import get_terms_with_multiple_definitions, is_any_node_present
+from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
+                         TransformationLedger)
 from django import forms
 from django.urls import path, reverse
-from django.shortcuts import render
-from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
+from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, HttpRequest
 import xml.etree.ElementTree as ET
 
 from core.exceptions import MissingColumnsError, MissingRowsError, TermCreationError
-from core.models import (ChildTermSet, SchemaLedger, Term, TermSet,
-                         TransformationLedger, NeoTerm)
-from .views import export_terms_as_json, export_terms_as_xml
-
-from django_neomodel import admin as neo_admin
+from core.models import (ChildTermSet, SchemaLedger, Term, TermSet, TransformationLedger)
+from django_neomodel import admin as neomodel_admin
+from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContextDescription
+from core.utils import run_node_creation
+from deconfliction_service.views import run_deconfliction
+from django import forms
+from uuid import uuid4
 import logging
+
+from .views import export_terms_as_json, export_terms_as_xml, export_terms_as_csv
+
 import pandas as pd
 
 logger = logging.getLogger('dict_config_logger')
@@ -20,6 +29,8 @@ logger = logging.getLogger('dict_config_logger')
 class CSVUploadForm(forms.Form):
     csv_file = forms.FileField()
 
+
+logger = logging.getLogger('dict_config_logger')
 
 # Register your models here.
 @admin.register(SchemaLedger)
@@ -128,22 +139,82 @@ class TermAdmin(admin.ModelAdmin):
                 iri__startswith=obj.root_term_set())
         return form
 
+class NeoTermAdminForm(forms.ModelForm):
+    alias = forms.CharField(required=False, help_text="Enter alias")  # Custom field
+    definition = forms.CharField(required=True, help_text="Enter definition")  # Custom field
+    context = forms.CharField(required=True, help_text="Enter context")  # Custom field
+    context_description = forms.CharField(required=True, help_text="Enter context description")  # Custom field
+
+    class Meta:
+        model = NeoTerm
+        fields = ['lcvid', 'alias', 'definition', 'context', 'context_description']
+
+    # def clean_definition(self):
+    #     definition = self.cleaned_data.get('definition')
+
+    #     get_terms_with_multiple_definitions()
+    #     # Check if the definition already exists in the NeoDefinition model
+    #     if is_any_node_present(NeoDefinition, definition=definition):
+    #         raise forms.ValidationError(f"A definition of '{definition}' already exists.")
+        
+    #     return definition  # Return the cleaned value
+
 class NeoTermAdmin(admin.ModelAdmin):
-    list_display = ('term', 'definition', 'context_description', 'context')
+    form = NeoTermAdminForm
+    list_display = ('lcvid', 'uid')
+    exclude = ['django_id', 'uid']
+
+    def __init__(self,*args, **kwargs):
+        
+        super().__init__(*args, **kwargs)
+        self.model.verbose_name = 'NeoTerm'
+        self.model.verbose_name_plural = 'NeoTerms'
+
+
+    def save_model(self, request, obj, form, change):
+        try:
+            alias = form.cleaned_data['alias']
+            definition = form.cleaned_data['definition']
+            context = form.cleaned_data['context']
+            context_description = form.cleaned_data['context_description']
+            logger.info(f"Creating NeoTerm with alias: {alias}, definition: {definition}, context: {context}, context_description: {context_description}")
+
+            run_node_creation(alias=alias, definition=definition, context=context, context_description=context_description)
+
+            messages.success(request, 'NeoTerm saved successfully.')
+            
+        except Exception as e:
+            logger.error('Error saving NeoTerm: {}'.format(e))
+            messages.error(request, 'Error saving NeoTerm: {}'.format(e))
+            return
+    
+
+    def delete_model(self, request, obj) -> None:
+        messages.error(request, 'Deleting terms is not allowed')
+
+    def delete_queryset(self, request, queryset):
+        """Prevent bulk deletion of NeoTerm objects and show a message."""
+        messages.error(request, "You cannot delete terms.")
+
+
+
     change_list_template = 'admin/neoterm_change_list.html'
     actions = ['export_as_json', 'export_as_xml', 'upload_csv']
 
-    REQUIRED_COLUMNS = [
-        field.name.replace("_", " ").title() for field in NeoTerm._meta.get_fields()
-        if hasattr(field, 'required') and field.required
-    ]
+    # REQUIRED_COLUMNS = [
+    #     field.name.replace("_", " ").title() for field in NeoTerm._meta.get_fields()
+    #     if hasattr(field, 'required') and field.required
+    # ]
 
+    REQUIRED_COLUMNS = ['Definition', 'Context', 'Context Description']
+    
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
             path('upload-csv/', self.upload_csv),
             path('admin/export-terms-json/', export_terms_as_json, name='export_terms_as_json'),
-            path('admin/export-terms-xml/', export_terms_as_xml, name='export_terms_as_xml')
+            path('admin/export-terms-xml/', export_terms_as_xml, name='export_terms_as_xml'),
+            path('admin/export-terms-csv/', export_terms_as_csv, name='export_terms_as_csv')
         ]
         return my_urls + urls
     
@@ -156,7 +227,8 @@ class NeoTermAdmin(admin.ModelAdmin):
                 csv_file = form.cleaned_data['csv_file']
                 try:
                     data = self.validate_csv_file(csv_file)
-                    self.create_terms_from_csv(data['data_frame'])
+                    df = data['data_frame']
+                    self.create_terms_from_csv(df)
                     messages.success(request, 'CSV file uploaded successfully.')
                     return HttpResponseRedirect(reverse('admin:core_neoterm_changelist'))
 
@@ -178,7 +250,6 @@ class NeoTermAdmin(admin.ModelAdmin):
     def validate_csv_file(self, csv_file):
         if not csv_file.name.endswith('.csv'):
             raise ValueError('The file extension is not .csv')
-
         try:
             logger.info('Validating CSV file...')
             df = pd.read_csv(csv_file)
@@ -220,18 +291,30 @@ class NeoTermAdmin(admin.ModelAdmin):
 
         for index, row in df.iterrows():
             try:
-                logger.info(f"This is the term for index {index}: {row['Term']}")
-                term = NeoTerm(
-                    term=row['Term'],
-                    definition=row['Definition'],
-                    context=row['Context'],
-                    context_description=row['Context Description']
-                )
-                term.save()
+                alias_value = row['Alias'] if pd.notna(row['Alias']) and row['Alias'] else None
+                run_node_creation(alias=alias_value, definition=row['Definition'], context=row['Context'], context_description=row['Context Description'])
             except Exception as e:
                 logger.error(f'Error creating term for index {index}: {str(e)}')
                 raise TermCreationError(f'Failed to create term for row {index + 1}: {str(e)}')
 
         logger.info(f'{len(df)} terms created from CSV file.')
 
-neo_admin.register(NeoTerm, NeoTermAdmin)
+neomodel_admin.register(NeoTerm, NeoTermAdmin)
+
+class NeoAliasAdmin(admin.ModelAdmin):
+    list_display = ('alias', 'term')
+
+
+neomodel_admin.register(NeoAlias, NeoAliasAdmin)
+
+class NeoContextAdmin(admin.ModelAdmin):
+    list_display = ('context', 'context_description')
+    readonly_fields = ('context', 'context_description')
+
+neomodel_admin.register(NeoContext, NeoContextAdmin)
+
+class NeoDefinitionAdmin(admin.ModelAdmin):
+    list_display = ('definition',)
+    readonly_fields = ('definition',)
+
+neomodel_admin.register(NeoDefinition, NeoDefinitionAdmin)

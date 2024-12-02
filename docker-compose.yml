@@ -3,18 +3,25 @@ version: "3"
 services:
   db-xss:
     image: mysql:5.7
+    container_name: db
     ports:
       - '3310:3306'
     environment:
       MYSQL_DATABASE: "${DB_NAME}"
-      MYSQL_USER: "${DB_USER}"
+      MYSQL_USER: "${DB_USER}"   
       MYSQL_PASSWORD: "${DB_PASSWORD}"
       MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
     networks:
       - openlxp
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$DB_ROOT_PASSWORD']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
     
   neo4j:
-    image: neo4j:4.2.0
+    image: neo4j:5.15.0
     ports:
       - '7687:7687'
       - '7474:7474'
@@ -22,14 +29,20 @@ services:
       NEO4J_AUTH: neo4j/password
     networks:
       - openlxp
+    healthcheck:
+      test: wget http://localhost:7474 || exit 1
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
 
   app:
-    container_name: openlxp-xss
+    container_name: app
     build:
       context: .
+    restart: always
     ports:
       - "8010:8020"
-    restart: always
     command: >
       sh -c "python manage.py makemigrations && python manage.py migrate && . /opt/app/start-app.sh"
     environment:
@@ -45,10 +58,21 @@ services:
       SP_PUBLIC_CERT: "${SP_PUBLIC_CERT}"
       SP_PRIVATE_KEY: "${SP_PRIVATE_KEY}"
       NEO4J_URL: "bolt://neo4j:password@neo4j:7687"
+      # BAD_HOST: "${BAD_HOST}"
+      # OVERIDE_HOST: "${OVERIDE_HOST}"
+      # STRATEGY: "${STRATEGY}"
+      SENTENCE_TRANSFORMERS_HOME: "${SENTENCE_TRANSFORMERS_HOME}"
+      HF_HOME: "${HF_HOME}"
+      TRANSFORMERS_CACHE: "${TRANSFORMERS_CACHE}"
+      HF_DATASETS_CACHE: "${HF_DATASETS_CACHE}"
     volumes:
       - ./app:/opt/app/openlxp-xss
+      - huggingface_data:/opt/app/huggingface
     depends_on:
-      - db-xss
+      db-xss:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
     networks:
       - openlxp
 
@@ -65,7 +89,7 @@ services:
       - openlxp
 
   neo4j-second:
-    image: neo4j:4.2.0
+    image: neo4j:5.15.0
     ports:
       - '7688:7687'
       - '7475:7475'
@@ -73,6 +97,12 @@ services:
       NEO4J_AUTH: neo4j/password
     networks:
       - openlxp
+    healthcheck:
+      test: wget http://localhost:7475 || exit 1
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
 
   app-second:
     container_name: openlxp-xss-2
@@ -96,6 +126,10 @@ services:
       SP_PUBLIC_CERT: "${SP_PUBLIC_CERT}"
       SP_PRIVATE_KEY: "${SP_PRIVATE_KEY}"
       NEO4J_URL: "bolt://neo4j:password@neo4j-second:7687"
+      SENTENCE_TRANSFORMERS_HOME: "${SENTENCE_TRANSFORMERS_HOME}"
+      HF_HOME: "${HF_HOME}"
+      TRANSFORMERS_CACHE: "${TRANSFORMERS_CACHE}"
+      HF_DATASETS_CACHE: "${HF_DATASETS_CACHE}"
     volumes:
       - ./app-xss-second:/opt/app/openlxp-xss-second
     depends_on:
@@ -106,6 +140,8 @@ services:
 volumes:
   data01:
     driver: local  # Consider removing if not used
+  huggingface_data:
+    driver: local
 
 networks:
   openlxp:

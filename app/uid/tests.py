@@ -14,7 +14,7 @@ class TestCounterNode(TestCase):
     @patch('app.uid.models.UIDCounter.nodes.first_or_none')
     def test_get_creates_counter_node_if_none(self, mock_first_or_none, mock_save):
         mock_first_or_none.return_value = None
-        counter_node = UIDCounter.get_instance()
+        counter_node = UIDCounter._get_instance()
         mock_first_or_none.assert_called_once()
         mock_save.assert_called_once()
         self.assertEqual(counter_node.counter, 0)
@@ -26,7 +26,7 @@ class TestCounterNode(TestCase):
         mock_counter_node.counter = 1
         mock_first_or_none.return_value = mock_counter_node
 
-        counter_node = UIDCounter.get_instance()
+        counter_node = UIDCounter._get_instance()
 
         mock_first_or_none.assert_called_once()
         mock_increment.assert_not_called()
@@ -34,7 +34,7 @@ class TestCounterNode(TestCase):
 
     @patch('app.uid.models.UIDCounter.save')
     def test_increment(self, mock_save):
-        counter = UIDCounter.get_instance()
+        counter = UIDCounter._get_instance()
         initial_value = counter.counter
         counter.increment()
         self.assertEqual(counter.counter, initial_value + 1)
