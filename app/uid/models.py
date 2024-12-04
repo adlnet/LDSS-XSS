@@ -7,6 +7,9 @@ from collections import defaultdict
 from typing import List
 from uuid import uuid4
 
+from collections import defaultdict
+from core.models import NeoTerm
+
 logger = logging.getLogger(__name__)
 
 GLOBAL_PROVIDER_OWNER_UID = "0xFFFFFFFF"
@@ -22,6 +25,51 @@ def check_neo4j_connection():
         except Exception:
             time.sleep(1)  # Wait before retrying
     return False
+
+# Alias class incase you create and alias with no context
+class Alias(StructuredNode):
+    alias = StringProperty(unique_index=True)  # The alias name
+    context = StringProperty(required=False, default=None)  # Optional context
+    points_to = RelationshipTo('NeoTerm', 'POINTS_TO')  # The relationship to NeoTerm
+    context_error = StringProperty(required=False)  # Optional field to store error message
+
+    def __str__(self):
+        return self.alias
+
+    def link_to_term(self, neo_term):
+        """Link this alias to a NeoTerm."""
+        if isinstance(neo_term, NeoTerm):
+            self.points_to.connect(neo_term)
+
+    def save(self, *args, **kwargs):
+        """Override the save method to automatically link the alias to a NeoTerm if context is provided."""
+        context_error = None  # Initialize an error variable
+
+        # Call the parent class save method
+        super(Alias, self).save(*args, **kwargs)
+
+        if self.context:
+            # Get or create the NeoTerm based on the context
+            term, created = NeoTerm.get_or_create(uid=self.context)
+            if term:
+                # Set relationships for the NeoTerm, including the alias
+                term.set_relationships(definition_node, context_node, self)
+            else:
+                context_error = f"No matching NeoTerm found for context: {self.context}"
+        else:
+            # If no context is provided, link to a default NeoTerm (first available NeoTerm)
+            term = NeoTerm.nodes.first()  # You can change this to a specific fallback logic
+            if term:
+                self.link_to_term(term)
+            else:
+                context_error = "No NeoTerm available to link."
+
+        # If an error was encountered, raise it so it can be caught in the view or returned to the form
+        if context_error:
+            self.context_error = context_error  # Store the error message in the instance
+            self.save()
+        
+        return context_error  # Return the error message, if any
 
 # Generated Logs to track instance, time of generation, uid, provider and lcv terms
 class GeneratedUIDLog(models.Model):
