@@ -582,7 +582,7 @@ class RequestForTermsFromExternalAPI(APIView):
                 return JsonResponse({'error': 'search_term parameter is required'}, status=400)
 
             # Log the search term for debugging
-            logger.debug(f"Searching for term: {search_term}")
+            logger.info(f"Searching for term: {search_term}")
 
             # Neo4j query to search for matching terms
             query = """
@@ -629,3 +629,20 @@ class RequestForTermsFromExternalAPI(APIView):
             #search_term = data.get('search_term')
             #if search_term:
                 #terms = NeoTerm.nodes.filter(term__icontains=search_term)
+
+class Upstream(APIView):
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            try:
+                data = json.loads(request.body.decode('utf-8'))
+                logger.info(f"Received request")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}")
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            logger.info(f"Received request data: {data}")  # Add a log to check the incoming data
+            return JsonResponse({'message': 'Term published to ccv successfully.'}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': 'internal server error'}, status=500)
