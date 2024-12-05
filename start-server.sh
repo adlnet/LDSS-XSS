@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # start-server.sh
-PORT=${PORT:-8010}
+PORT=${PORT:-8011}
 
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ] ; then
     (cd openlxp-xss; python manage.py createsuperuser --no-input)
