@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     'social_django',
     'uid',
     'openlxp_authentication',
-    'encrypted_model_fields',
     'deconfliction_service',
 ]
 

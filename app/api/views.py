@@ -630,7 +630,7 @@ class RequestForTermsFromExternalAPI(APIView):
             #if search_term:
                 #terms = NeoTerm.nodes.filter(term__icontains=search_term)
 
-class Upstream(APIView):
+class PublishTerm(APIView):
 
     permission_classes = [AllowAny]
 
@@ -646,3 +646,11 @@ class Upstream(APIView):
             return JsonResponse({'message': 'Term published to ccv successfully.'}, status=200)
         except Exception as e:
             return JsonResponse({'error': 'internal server error'}, status=500)
+
+@api_view(['GET'])
+def search_by_definition(request):
+    try:
+        return
+    except Exception as e:
+        return JsonResponse({'error': 'internal server error'}, status=500)
+
