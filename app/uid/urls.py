@@ -16,6 +16,9 @@ urlpatterns = [
 
     path('api/log', report_generated_uids, name='uid-generated'),
     path('api/generate', api_generate_uid, name='uid-generated'),
+
+    path('search/', views.search, name='search'),  # For the search endpoint
+    path('create_alias/', views.create_alias, name='create_alias'),
     
     # path('api/uid-repo/', UIDRepoViewSet.as_view({'get': 'list'}), name='uid-repo'),
     # path('api/uid/all', UIDTermViewSet.as_view({'get': 'list'}), name='uid-all'),
