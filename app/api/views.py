@@ -17,6 +17,8 @@ from rest_framework.permissions import AllowAny
 import requests
 from neomodel import db
 
+import re
+
 
 from api.serializers import (TermJSONLDSerializer, TermSetJSONLDSerializer,
                              TermSetSerializer)
@@ -29,6 +31,7 @@ import pandas as pd
 
 logger = logging.getLogger('dict_config_logger')
 
+MAX_SEARCH_QUERY_LENGTH = 255
 
 def check_status(messages, queryset):
     queryset = queryset.filter(status='published')
@@ -554,44 +557,92 @@ class RequestTermsFromExternalAPI(APIView):
 #
 ## Param - APIVIEW is a django rest framework class that helps with API, with built in methods like get, post, put, delete
 ## Response to requested terms from external API.
-class RequestForTermsFromExternalAPI(APIView):
-    
-    logger.debug("Hit the RequestFORTermsFROMExternalAPI view POST method")  # Simple check
+class Search(APIView):
+
+    SEARCH_BY_ALIAS = """
+    WITH toLower($search_term) as search_term
+    MATCH (a:NeoAlias)
+    WHERE toLower(a.alias) CONTAINS search_term
+    MATCH (a)-[:POINTS_TO]->(term:NeoTerm)
+    OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
+    OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
+    RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+    LIMIT 100
+    """
+
+    SEARCH_BY_DEFINITION = """
+    WITH toLower($search_term) as search_term
+    MATCH (def:NeoDefinition)
+    WHERE toLower(def.definition) CONTAINS search_term
+    MATCH (term:NeoTerm)-[:POINTS_TO]->(def)
+    OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
+    OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
+    RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+    LIMIT 100
+    """
+
+    SEARCH_BY_CONTEXT = """
+    WITH toLower($search_term) as search_term
+    MATCH (ctx:NeoContext)
+    WHERE toLower(ctx.context) CONTAINS search_term
+    MATCH (ctx)-[:IS_A]->(term:NeoTerm)
+    OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
+    OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
+    RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
+    LIMIT 100
+    """
+
+    GENERAL_GRAPH_SEARCH = """
+    WITH toLower($search_term) as search_term
+    MATCH (n)
+    WHERE (n:NeoAlias OR n:NeoDefinition OR n:NeoContext)  
+    AND (
+        (n:NeoAlias AND toLower(n.alias) CONTAINS search_term) OR
+        (n:NeoDefinition AND toLower(n.definition) CONTAINS search_term) OR
+        (n:NeoContext AND toLower(n.context) CONTAINS search_term)
+    )
+    WITH n
+    CALL {
+        WITH n
+        MATCH path = (n)-[*1..2]-(connected)
+        RETURN path
+    }
+    RETURN * LIMIT 100
+    """
     
     ## Allow any lets ANY user, including unauth access this API endpoint. Do we want to make more restrictive in prod? - MB
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        #return JsonResponse({"message": "POST request received successfully"}, status=200)
+    def get(self, request, *args, **kwargs):
+        
         try:
+            logger.debug("Hit the Search view GET method")  # Simple check
+            
+            search_query = request.GET.get('search_query', '')
+            search_type = request.GET.get('search_type', '')
 
-            try:
-                data = json.loads(request.body.decode('utf-8'))  # Manually parse JSON if necessary
-                logger.debug(f"Parsed request data: {data}")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error: {e}")
-                return JsonResponse({'error': 'Invalid JSON'}, status=400)
-            # Extract the data sent in the request body (this will be a JSON payload)
-            data = request.data
-    
-            logger.debug(f"Received request data: {data}")  # Add a log to check the incoming data
+            if validate_search_query(search_query):
+                return JsonResponse({'error': 'Query parameter "search_query" contains invalid characters or is malformed.', 'status': 400})
 
-            # Extract search term from request
-            search_term = data.get('search_term')
-            if not search_term:
-                return JsonResponse({'error': 'search_term parameter is required'}, status=400)
+            if not search_query: 
+                return JsonResponse({'error': 'Query parameter "search_query" is required', 'status': 400})
+
+            logger.debug(f"Received request data: {search_query}")  # Add a log to check the incoming data
 
             # Log the search term for debugging
-            logger.info(f"Searching for term: {search_term}")
+            logger.info(f"Searching for term: {search_query}")
 
-            # Neo4j query to search for matching terms
-            query = """
-            MATCH (term:NeoTerm)-[:POINTS_TO]->(definition:NeoDefinition)
-            WHERE term.term CONTAINS $search_term
-            RETURN term, definition
-            """
+            if search_type == 'alias':
+                query = SEARCH_BY_ALIAS
+            elif search_type == 'definition':
+                query = SEARCH_BY_DEFINITION
+            elif search_type == 'context':
+                query = SEARCH_BY_CONTEXT
+            else:
+                query = GENERAL_GRAPH_SEARCH
+
+            
             # Execute the query
-            results, meta = db.cypher_query(query, {'search_term': search_term})
 
             # Parse the query results
             terms_data = []
@@ -606,7 +657,7 @@ class RequestForTermsFromExternalAPI(APIView):
             if terms_data:
                 return JsonResponse({'terms': terms_data}, status=200)
             else:
-                return JsonResponse({'message': 'No terms found for the provided search_term'}, status=404)
+                return JsonResponse({'message': 'No terms found for the provided search_query'}, status=404)
             
         except Exception as e:
             logger.error(f"Error processing request: {str(e)}")
@@ -630,27 +681,23 @@ class RequestForTermsFromExternalAPI(APIView):
             #if search_term:
                 #terms = NeoTerm.nodes.filter(term__icontains=search_term)
 
-class PublishTerm(APIView):
+def validate_search_query(search_query):
 
-    permission_classes = [AllowAny]
+    if validate_characters(search_query) or validate_character_count(search_query):
+        return True
+    return False
 
-    def post(self, request):
-        try:
-            try:
-                data = json.loads(request.body.decode('utf-8'))
-                logger.info(f"Received request")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error: {e}")
-                return JsonResponse({'error': 'Invalid JSON'}, status=400)
-            logger.info(f"Received request data: {data}")  # Add a log to check the incoming data
-            return JsonResponse({'message': 'Term published to ccv successfully.'}, status=200)
-        except Exception as e:
-            return JsonResponse({'error': 'internal server error'}, status=500)
+def validate_characters(search_query):
 
-@api_view(['GET'])
-def search_by_definition(request):
-    try:
-        return
-    except Exception as e:
-        return JsonResponse({'error': 'internal server error'}, status=500)
+    if re.match(r'^[a-zA-Z0-9\s]*$', search_query):
+        return True
+    return False
 
+def validate_character_count(search_query):
+    if not search_query or not search_query.strip():
+        return True
+    
+    if len(search_query) >=MAX_SEARCH_QUERY_LENGTH:
+        return True
+    
+    return False
