@@ -18,8 +18,6 @@ urlpatterns = [
      path('import-csv/', views.ImportCSVView.as_view(), name='import-csv'),
      path('export-terms/', views.ExportTermsView.as_view(), name='export-terms'),
 
-     # for upstream and downstream
-     path('upstream/', views.Upstream.as_view(), name='upstream'),
      ## Downstream to send terms
      path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
      path('requested-terms/', views.RequestTermsFromExternalAPI.as_view(), name='requested-terms'),

@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'uid',
     'openlxp_authentication',
     'deconfliction_service',
+    'ccv',
 ]
 
 MIDDLEWARE = [

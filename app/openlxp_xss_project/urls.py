@@ -28,8 +28,9 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('api/auth/', include('users.urls')),
     path('uid/', include('uid.urls')),
+    path('ccv/', include('ccv.urls')),
     ## Downstream to send terms
-    path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
+    #path('send-terms/', views.SendTermsToExternalAPI.as_view(), name='send-terms'),
     path('requested-terms/', views.RequestTermsFromExternalAPI.as_view(), name='requested-terms'),
-    path('terms-requested/', views.RequestForTermsFromExternalAPI.as_view(), name='terms-requested'),
+    #path('terms-requested/', views.RequestForTermsFromExternalAPI.as_view(), name='terms-requested'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
