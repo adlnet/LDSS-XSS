@@ -3,6 +3,7 @@ from .models import Provider, LCVTerm, UIDRequestToken # Import Neo4j models dir
 from uuid import uuid4
 from .models import Alias  # Import Neo4j models directly
 #from .models import LastGeneratedUID
+from .models import NeoAliasManager
 
 #class LastGeneratedUIDForm(forms.ModelForm):
  #   class Meta:
@@ -84,19 +85,41 @@ class SearchForm(forms.Form):
     )
     context = forms.CharField(label='Context', required=False, max_length=255)
 
+#class AliasForm(forms.Form):
+ #   alias = forms.CharField(max_length=255, required=True)  # The alias name
+  #  context = forms.CharField(max_length=255, required=False)  # Context as a string (the term's name)
+
+   # def save(self):
+        # Create and save Alias
+    #    alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
+     #   alias.save()
+
+        # Optionally, if context is provided, link to the NeoTerm
+      #  if alias.context:
+       #     term = NeoTerm.nodes.get_or_none(name=alias.context)
+        #    if term:
+         #       alias.link_to_term(term)  # Link this alias to the found NeoTerm
+
+        #return alias
+
 class AliasForm(forms.Form):
     alias = forms.CharField(max_length=255, required=True)  # The alias name
     context = forms.CharField(max_length=255, required=False)  # Context as a string (the term's name)
 
     def save(self):
-        # Create and save Alias
-        alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
-        alias.save()
+        from core.models import NeoAlias
+        # Retrieve cleaned data
+        alias_name = self.cleaned_data['alias']
+        context = self.cleaned_data.get('context')
 
-        # Optionally, if context is provided, link to the NeoTerm
-        if alias.context:
-            term = NeoTerm.nodes.get_or_none(name=alias.context)
-            if term:
-                alias.link_to_term(term)  # Link this alias to the found NeoTerm
+        # Use NeoAliasManager to create or link the alias
+        context_error = NeoAliasManager.link_alias_to_term_and_context(alias_name, context)
 
-        return alias
+        # Check if there were any errors while linking
+        if context_error:
+            raise forms.ValidationError(f"Error: {context_error}")
+
+        # Optionally, you can also return the created or updated NeoAlias
+        neo_alias, created = NeoAlias.get_or_create(alias=alias_name)
+        
+        return neo_alias  # Return the created or linked NeoAlias instance
