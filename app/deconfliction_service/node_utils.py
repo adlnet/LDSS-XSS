@@ -10,12 +10,6 @@ import sys
 
 logger = logging.getLogger('dict_config_logger')
 
-if 'runserver' in sys.argv or 'uwsgi' in sys.argv:
-    from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-else:
-    model = None
-
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 #model = SentenceTransformer('all-mpnet-base-v2')
