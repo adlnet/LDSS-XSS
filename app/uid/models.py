@@ -37,6 +37,7 @@ class Alias(StructuredNode):
         return self.alias
 
     def link_to_term(self, neo_term):
+        from core.models import NeoTerm, NeoAlias, NeoContext
         """Link this alias to a NeoTerm."""
         if isinstance(neo_term, NeoTerm):
             self.points_to.connect(neo_term)
@@ -49,8 +50,8 @@ class Alias(StructuredNode):
         super(Alias, self).save(*args, **kwargs)
 
         if self.context:
-            # Get or create the NeoTerm based on the context
-            term, created = NeoTerm.get_or_create(uid=self.context)
+            from core.models import NeoTerm, NeoAlias, NeoContext
+            term, created = NeoTerm.get_or_create(uid=self.context) # Get or create the NeoTerm based on the context
             if term:
                 # Set relationships for the NeoTerm, including the alias
                 term.set_relationships(definition_node, context_node, self)
@@ -69,6 +70,44 @@ class Alias(StructuredNode):
             self.context_error = context_error  # Store the error message in the instance
             self.save()
         
+        return context_error  # Return the error message, if any
+
+# Addition of the NeoAliasManager class to use NeoAlias in core/models
+class NeoAliasManager:
+    @staticmethod
+    def link_alias_to_term_and_context(alias: str, context: str = None):
+        from core.models import NeoTerm, NeoAlias, NeoContext
+        """Manage the linking of NeoAlias to NeoTerm and NeoContext."""
+        context_error = None
+
+        # Get or create the NeoAlias (same as get_or_create in your Alias class)
+        alias_node, created = NeoAlias.get_or_create(alias)
+
+        if context:
+            # If context is provided, attempt to get or create NeoContext
+            context_node, context_created = NeoContext.get_or_create(context)
+            if context_node:
+                # Link the alias to the context
+                alias_node.context.connect(context_node)
+            else:
+                context_error = f"No matching NeoContext found for context: {context}"
+
+        if not alias_node.term:
+            # If no term is linked, link the alias to the first available NeoTerm
+            term = NeoTerm.nodes.first()  # Fallback logic to link to the first available NeoTerm
+            if term:
+                alias_node.term.connect(term)
+            else:
+                context_error = context_error or "No NeoTerm available to link."
+
+        # Save the alias (optional)
+        alias_node.save()
+
+        # If any errors occurred, return the error message
+        if context_error:
+            alias_node.context_error = context_error  # Store error on the alias
+            alias_node.save()  # Save the alias again with the error information
+
         return context_error  # Return the error message, if any
 
 # Generated Logs to track instance, time of generation, uid, provider and lcv terms
