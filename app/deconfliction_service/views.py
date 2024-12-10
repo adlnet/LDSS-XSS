@@ -19,7 +19,7 @@ from core.models import NeoDefinition, NeoTerm
 logger = logging.getLogger('dict_config_logger')
 
 
-def run_deconfliction(alias: str, definition: str, context: str, context_description: str):
+def run_deconfliction(definition: str):
     try:
         logger.info('Running Deconfliction')
         definition_vector_embedding = generate_embedding(definition)

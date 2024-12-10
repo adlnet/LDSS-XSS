@@ -63,11 +63,10 @@ services:
       # STRATEGY: "${STRATEGY}"
       SENTENCE_TRANSFORMERS_HOME: "${SENTENCE_TRANSFORMERS_HOME}"
       HF_HOME: "${HF_HOME}"
-      TRANSFORMERS_CACHE: "${TRANSFORMERS_CACHE}"
       HF_DATASETS_CACHE: "${HF_DATASETS_CACHE}"
+      IS_CCV: True
     volumes:
       - ./app:/opt/app/openlxp-xss
-      - huggingface_data:/opt/app/huggingface
     depends_on:
       db-xss:
         condition: service_healthy

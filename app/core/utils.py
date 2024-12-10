@@ -10,7 +10,7 @@ logger = logging.getLogger('dict_config_logger')
 def run_node_creation(definition: str, context: str, context_description: str, alias: str=None):
     try:
         logger.info('Running Deconfliction')
-        definition_vector_embedding, deconfliction_status, most_similar_text, highest_score = run_deconfliction(alias, definition, context, context_description)
+        definition_vector_embedding, deconfliction_status, most_similar_text, highest_score = run_deconfliction(definition)
 
         if deconfliction_status == 'unique':
             run_unique_definition_creation(definition=definition, context=context, context_description=context_description, definition_embedding=definition_vector_embedding, alias=alias)

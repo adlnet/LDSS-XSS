@@ -16,7 +16,7 @@ if 'runserver' in sys.argv or 'uwsgi' in sys.argv:
 else:
     model = None
 
-
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 #model = SentenceTransformer('all-mpnet-base-v2')
 
@@ -39,6 +39,7 @@ def generate_embedding(text: str) -> list:
     :param text: The text to generate an embedding for.
     :return: The sentence embedding as a numpy array.
     """
+    logger.info(f"Generating embedding for text: {text}")
     logger.info(len(model.encode(text).tolist()))
     return model.encode(text).tolist()
 
