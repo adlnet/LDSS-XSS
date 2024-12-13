@@ -433,10 +433,6 @@ class TransformationLedger(TimeStampedModel):
             json_file.close()
             self.schema_mapping_file = None
 
-class CCVTerm(DjangoNode):
-    django_id = UniqueIdProperty()
-    ccvid = StringProperty(unique_index=True)
-    lcv_neo_term = RelationshipTo('NeoTerm', 'IS_A')
     
 class NeoTerm(DjangoNode):
     django_id = UniqueIdProperty()
@@ -450,11 +446,13 @@ class NeoTerm(DjangoNode):
     definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
     context = RelationshipFrom('NeoContext', 'IS_A')
     alias = RelationshipFrom('NeoAlias', 'POINTS_TO')
-    ccvid = RelationshipTo('CCVTerm', 'IS_A')
 
     class Meta:
         app_label = 'core'
     
+    @property
+    def pk(self):
+        return self.django_id
 
     @classmethod
     def create_new_term(cls, lcvid: str = None) -> 'NeoTerm':

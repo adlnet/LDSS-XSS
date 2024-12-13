@@ -161,8 +161,11 @@ class NeoTermAdminForm(forms.ModelForm):
 
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
-    list_display = ('lcvid', 'uid')
-    exclude = ['django_id', 'uid']
+    list_display = ('django_id','uid_chain', 'uid', 'status')
+
+    change_list_template = 'admin/neoterm_change_list.html'
+    actions = ['publish_to_ccv']
+    
 
     def __init__(self,*args, **kwargs):
         
@@ -197,17 +200,20 @@ class NeoTermAdmin(admin.ModelAdmin):
         messages.error(request, "You cannot delete terms.")
 
 
-
-    change_list_template = 'admin/neoterm_change_list.html'
-    actions = ['export_as_json', 'export_as_xml', 'upload_csv']
-
     # REQUIRED_COLUMNS = [
     #     field.name.replace("_", " ").title() for field in NeoTerm._meta.get_fields()
     #     if hasattr(field, 'required') and field.required
     # ]
 
     REQUIRED_COLUMNS = ['Definition', 'Context', 'Context Description']
-    
+
+    def get_queryset(self, request):
+        if request.method == 'POST':
+            
+            logger.info(request.body)
+            logger.info(request.POST.get('action'))
+        return super().get_queryset(request)
+
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
@@ -217,6 +223,12 @@ class NeoTermAdmin(admin.ModelAdmin):
             path('admin/export-terms-csv/', export_terms_as_csv, name='export_terms_as_csv')
         ]
         return my_urls + urls
+    
+    def publish_to_ccv(self, request, queryset):
+        logger.info('Publishing terms to CCV...')
+        
+            # publish_to_ccv(term)
+        messages.success(request, f'{len(queryset)} terms published to CCV.')
     
 
     def upload_csv(self, request):

@@ -38,6 +38,11 @@ ALLOWED_HOSTS = ['*']
 
 # Application definition
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8010',  # Add the port if needed
+    'http://127.0.0.1:8010',
+]
+
 INSTALLED_APPS = [
     "django_neomodel",
     "admin_interface",
