@@ -14,19 +14,20 @@ class CCVDataIngest(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         try:
+            logger.info('CCVDataIngest')
             if not IS_CCV:
                 return JsonResponse({'error': 'This is endpoint is not available on this instance.'}, status=400)
             
             data = json.loads(request.body)
             logger.info(data)
-            for item in data:
-                definition = item.get('definition')
-                lcvid = item.get('lcvid')
-                parent_id = item.get('parent_id')
-                logger.info(definition)
-                logger.info(lcvid)
-                logger.info(parent_id)
-                run_ccv_node_creation(definition, lcvid, parent_id)
+            
+            definition = data.get('definition')
+            lcvid = data.get('lcvid')
+            parent_id = data.get('uid_chain')
+            logger.info(definition)
+            logger.info(lcvid)
+            logger.info(parent_id)
+            run_ccv_node_creation(definition, lcvid, parent_id)
             # logger.info(data)
             # for obj in data:
             #     lcvid = obj.get('lcvid')

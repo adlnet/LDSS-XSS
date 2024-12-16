@@ -292,7 +292,17 @@ class CCVUpstream(models.Model):
     def __str__(self):
         """String for representing the Model object."""
         return f'{self.ccv_api_endpoint}'
-
+    
+    @classmethod
+    def get_endpoint(cls):
+        try:
+            instance = cls.objects.first()
+            if instance:
+                return instance.ccv_api_endpoint
+            else:
+                return None
+        except Exception as e:
+            raise ValidationError('No CCV Upstream instance found')
 
 class CCVDownstream(models.Model):
     """Model for Downstream CCV Communication """

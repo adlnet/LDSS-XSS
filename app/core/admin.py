@@ -12,7 +12,8 @@ import xml.etree.ElementTree as ET
 from core.exceptions import MissingColumnsError, MissingRowsError, TermCreationError
 from core.models import (ChildTermSet, SchemaLedger, Term, TermSet, TransformationLedger)
 from django_neomodel import admin as neomodel_admin
-from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm, NeoContextDescription
+from core.models import NeoAlias, NeoContext, NeoDefinition, NeoTerm
+from uid.ccvmodels import CCVUpstream
 from core.utils import run_node_creation
 from deconfliction_service.views import run_deconfliction
 from django import forms
@@ -22,6 +23,8 @@ import logging
 from .views import export_terms_as_json, export_terms_as_xml, export_terms_as_csv
 
 import pandas as pd
+
+import requests
 
 logger = logging.getLogger('dict_config_logger')
 
@@ -207,12 +210,6 @@ class NeoTermAdmin(admin.ModelAdmin):
 
     REQUIRED_COLUMNS = ['Definition', 'Context', 'Context Description']
 
-    def get_queryset(self, request):
-        if request.method == 'POST':
-            
-            logger.info(request.body)
-            logger.info(request.POST.get('action'))
-        return super().get_queryset(request)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -225,11 +222,47 @@ class NeoTermAdmin(admin.ModelAdmin):
         return my_urls + urls
     
     def publish_to_ccv(self, request, queryset):
-        logger.info('Publishing terms to CCV...')
+        try:
+            connection = self.get_ccv_connection()
+            if not connection:
+                messages.error(request, 'Connection to CCV failed. Please check your CCV Upstream configuration.')
+                return
+
+            accepted_count = 0
+            for term in queryset:
+                if term.status == 'accepted':
+                    accepted_count += 1
+                    messages.error(request, f'Term {term.uid} is already published.')
+                    continue
+                neoterm_node = NeoTerm.get_by_uid(term.uid)
+                logger.info(neoterm_node)
+                if not neoterm_node:
+                    messages.error(request, f'Term {term.uid} not found in Neo4j')
+                    continue
+                
+                request_body = neoterm_node.to_json()
+
+                response = requests.post(f"{connection}/ccv/data-ingest/", json=request_body)
+                response.raise_for_status()
+
+                if response.status_code == 200:
+                    term.status = 'accepted'
+                    term.save()
+                    messages.success(request, f'Term {term.uid} published to CCV.')
+                
+            if len(queryset) - accepted_count > 0:
+                messages.success(request, f'{len(queryset)-accepted_count} terms published to CCV.')
+            else:
+                messages.error(request, 'No terms were published to CCV.')
+        except requests.RequestException as e:
+            logger.error(f"Failed to publish term {term.uid}: {e}")
+            messages.error(request, f"Failed to publish term {term.uid}. Error: {str(e)}")
+        except Exception as e:
+            messages.error(request, f'Error publishing terms to CCV: {str(e)}')
+            logger.error(f'Error publishing terms to CCV: {str(e)}')
         
-            # publish_to_ccv(term)
-        messages.success(request, f'{len(queryset)} terms published to CCV.')
-    
+    def get_ccv_connection(self):
+        return CCVUpstream.get_endpoint()
 
     def upload_csv(self, request):
         logger.info('Uploading CSV file...')

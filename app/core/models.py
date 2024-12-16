@@ -435,12 +435,11 @@ class TransformationLedger(TimeStampedModel):
 
     
 class NeoTerm(DjangoNode):
-    django_id = UniqueIdProperty()
+    django_id = UniqueIdProperty(primary_key=True)
     uid = StringProperty(unique_index=True)
     uid_chain = StringProperty(unique_index=True)
     lcvid = StringProperty(default="DOD-OSD-P_R-DHRA-DSSC")
     status = StringProperty(choices={'accepted':'accepted', 'rejected':'rejected', 'pending':'pending'}, default='pending')
-    term = StringProperty(default="UNASSIGNED")
     deprecated = BooleanProperty(default=False)
     uid_node = RelationshipTo('UIDNode', 'HAS_UID')
     definition = RelationshipTo('NeoDefinition', 'POINTS_TO')
@@ -449,10 +448,6 @@ class NeoTerm(DjangoNode):
 
     class Meta:
         app_label = 'core'
-    
-    @property
-    def pk(self):
-        return self.django_id
 
     @classmethod
     def create_new_term(cls, lcvid: str = None) -> 'NeoTerm':
@@ -475,6 +470,13 @@ class NeoTerm(DjangoNode):
         term_node.save()
 
         return term_node
+    
+    @classmethod
+    def get_by_uid(cls, uid: str) -> 'NeoTerm':
+        logger.info(f"Getting term by uid: {uid}")
+        node = cls.nodes.get_or_none(uid=uid)
+        logger.info(f"Got term by uid: {node}")
+        return node
         
     def set_relationships(self, definition_node, context_node, alias_node):
         try:
@@ -485,6 +487,19 @@ class NeoTerm(DjangoNode):
         except exceptions.NeomodelException as e:
             logger.error(f"NeoModel-related error while connecting relationships for term '{self.uid}': {e}")
             raise e
+    def to_json(self):
+        try:
+            definition_node = self.definition.single()
+            return {
+                "uid": self.uid,
+                "uid_chain": self.uid_chain,
+                "lcvid": self.lcvid,
+                "status": self.status,
+                "deprecated": self.deprecated,
+                "definition": definition_node.definition if definition_node else None,
+            }
+        except Exception as e:
+            logger.error(f"Error while converting NeoTerm to json: {e}")
 
 # @abstract
 # class NeoGeneric(DjangoNode):
