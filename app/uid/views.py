@@ -16,8 +16,8 @@ import os
 from .forms import SearchForm
 import requests
 import urllib.parse
-from .models import Alias
-from .forms import AliasForm
+# from .models import Alias
+# from .forms import AliasForm
 
 # Cypher Queries
 SEARCH_BY_ALIAS = """
@@ -28,7 +28,6 @@ MATCH (a)-[:POINTS_TO]->(term:NeoTerm)
 OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
 OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
 RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
-LIMIT 100
 """
 
 SEARCH_BY_DEFINITION = """
@@ -39,7 +38,6 @@ MATCH (term:NeoTerm)-[:POINTS_TO]->(def)
 OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
 OPTIONAL MATCH (ctx:NeoContext)-[:IS_A]->(term)
 RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
-LIMIT 100
 """
 
 SEARCH_BY_CONTEXT = """
@@ -50,7 +48,6 @@ MATCH (ctx)-[:IS_A]->(term:NeoTerm)
 OPTIONAL MATCH (term)-[:POINTS_TO]->(def:NeoDefinition)
 OPTIONAL MATCH (a:NeoAlias)-[:POINTS_TO]->(term)
 RETURN term.uid as LCVID, a.alias as Alias, def.definition as Definition, ctx.context as Context
-LIMIT 100
 """
 
 GENERAL_GRAPH_SEARCH = """
@@ -68,11 +65,11 @@ CALL {
     MATCH path = (n)-[*1..2]-(connected)
     RETURN path
 }
-RETURN * LIMIT 100
+RETURN n.LCVID as LCVID, n.alias AS Alias, n.definition AS Definition, n.context AS Context 
 """
 
 # Set up logging to capture errors and important information
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('dict_config_logger')
 
 # # Attempt to initialize the UID generator
 # try:
@@ -141,6 +138,17 @@ def generate_uid_node(request: HttpRequest):
     #except Provider.DoesNotExist:
     #    return JsonResponse({'error': 'Provider not found'}, status=404)
 
+def execute_neo4j_query(query, params):
+    query_str = query
+    try:
+        logger.info(f"Executing query: {query} with params: {params}")
+        results, meta = db.cypher_query(query_str, params)
+        logger.info(results)
+        return results
+    except Exception as e:
+        logger.error(f"Error executing Neo4j query: {e}")
+        return None
+
 # Django view for search functionality
 def search(request):
     results = []
@@ -171,7 +179,7 @@ def search(request):
 
             if results_data:
                 logger.info(f"Raw results data: {results_data}")
-                results = [
+                results = {"data":[
                     {
                         "LCVID": record[0],  # Assuming record[0] is 'LCVID'
                         "Alias": record[1],  # Assuming record[1] is 'Alias'
@@ -179,14 +187,13 @@ def search(request):
                         "Context": record[3]  # Assuming record[3] is 'Context'
                     }
                     for record in results_data  # Iterating over each record in results_data
-                ]
+                ]}
             else:
                 logger.info("No results found.")
-                results = [{'error': 'No results found or error querying Neo4j.'}]
+                results = {'error': 'No results found or error querying Neo4j.'}
 
     else:
         form = SearchForm()
-
     return render(request, 'search.html', {'form': form, 'results': results})
 
 #def create_alias(request):
@@ -215,45 +222,45 @@ def search(request):
 
     #return render(request, 'create_alias.html', {'form': form})
 
-def create_alias(request):
-    if request.method == 'POST':
-        form = AliasForm(request.POST)
-        if form.is_valid():
-            alias = form.save() # This will create and save the Alias to Neo4j
+# def create_alias(request):
+#     if request.method == 'POST':
+#         form = AliasForm(request.POST)
+#         if form.is_valid():
+#             alias = form.save() # This will create and save the Alias to Neo4j
 
-            # Retrieve the context from the form (if provided)
-            context = form.cleaned_data.get('context')
+#             # Retrieve the context from the form (if provided)
+#             context = form.cleaned_data.get('context')
 
-            # If a context is provided, try to link it to the alias
-            if context:
-                try:
-                    # Assuming 'context' is the context related to the alias
-                    term = alias.term  # Fetch the term associated with the alias
-                    # Link the alias to the term and context in Neo4j
-                    alias.context.connect(context)
+#             # If a context is provided, try to link it to the alias
+#             if context:
+#                 try:
+#                     # Assuming 'context' is the context related to the alias
+#                     term = alias.term  # Fetch the term associated with the alias
+#                     # Link the alias to the term and context in Neo4j
+#                     alias.context.connect(context)
 
-                    # Also connect the alias to the term if it's not already done
-                    term.aliases.connect(alias)
+#                     # Also connect the alias to the term if it's not already done
+#                     term.aliases.connect(alias)
 
-                    messages.success(request, f"Alias '{alias.alias}' successfully created and linked to the context '{context.context}'.")
+#                     messages.success(request, f"Alias '{alias.alias}' successfully created and linked to the context '{context.context}'.")
 
-                except Exception as e:
-                    # If there is an error with linking the context, handle it
-                    messages.error(request, f"Error linking alias to context: {str(e)}")
+#                 except Exception as e:
+#                     # If there is an error with linking the context, handle it
+#                     messages.error(request, f"Error linking alias to context: {str(e)}")
 
-            else:
-                # If no context is provided, still save the alias but show a warning
-                messages.warning(request, f"Alias '{alias.alias}' created without a context. You can add a context later.")
+#             else:
+#                 # If no context is provided, still save the alias but show a warning
+#                 messages.warning(request, f"Alias '{alias.alias}' created without a context. You can add a context later.")
 
-            # Reset the form for another entry if needed
-            form = AliasForm()
+#             # Reset the form for another entry if needed
+#             form = AliasForm()
 
-        else:
-            messages.error(request, "There was an error with the form. Please try again.")
-    else:
-        form = AliasForm()
+#         else:
+#             messages.error(request, "There was an error with the form. Please try again.")
+#     else:
+#         form = AliasForm()
 
-    return render(request, 'create_alias.html', {'form': form})
+#     return render(request, 'create_alias.html', {'form': form})
 
 # Provider and LCVTerm (Otherwise alternative Parent and child) Now with collision detection on both.
 def create_provider(request):

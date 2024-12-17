@@ -15,7 +15,7 @@ def run_node_creation(definition: str, context: str, context_description: str, a
         if deconfliction_status == 'unique':
             run_unique_definition_creation(definition=definition, context=context, context_description=context_description, definition_embedding=definition_vector_embedding, alias=alias)
         elif deconfliction_status == 'duplicate':
-            run_duplicate_definition_creation(alias, most_similar_text, context, context_description)
+            run_duplicate_definition_creation(alias=alias, definition=most_similar_text, context=context, context_description=context_description)
         elif deconfliction_status == 'collision':
             run_collision_definition_creation(alias, most_similar_text, definition, context, context_description, definition_vector_embedding, highest_score)
             
@@ -27,66 +27,94 @@ def run_node_creation(definition: str, context: str, context_description: str, a
 
 def run_unique_definition_creation(definition, context, context_description, definition_embedding, alias):
     try:
-        # uid = uuid4()
         term_node = NeoTerm.create_new_term()
-
-        alias_node = None
-        if alias:
-            alias_node, _ = NeoAlias.get_or_create(alias=alias)
-
+        alias_node, _ = NeoAlias.get_or_create(alias=alias) if alias else (None, None)
         definition_node, _ = NeoDefinition.get_or_create(definition=definition, definition_embedding=definition_embedding)
-
         context_node, _ = NeoContext.get_or_create(context=context)
-
         context_description_node, _ = NeoContextDescription.get_or_create(context_description=context_description, context_node=context_node)
 
-        context_node.set_relationships(term_node=term_node, alias_node=alias_node, definition_node=definition_node, context_description_node=context_description_node)
         term_node.set_relationships(alias_node=alias_node, definition_node=definition_node, context_node=context_node)
+        context_node.set_relationships(term_node=term_node, alias_node=alias_node, definition_node=definition_node, context_description_node=context_description_node)
+        definition_node.set_relationships(term_node=term_node, context_node=context_node, context_description_node=context_description_node)
+        context_description_node.set_relationships(definition_node=definition_node, context_node=context_node)
+
         if alias_node:
             alias_node.set_relationships(term_node=term_node, context_node=context_node)
-        definition_node.set_relationships(term_node, context_node, context_description_node)
-        context_description_node.set_relationships(definition_node, context_node)
-        
-    except Exception as e: 
+
+    except Exception as e:
         logger.error(f"Error in run_unique_definition_creation: {e}")
-        raise e
+        raise
     
+# def run_duplicate_definition_creation(alias, definition, context, context_description):
+#     try:
+#         alias_node = None
+#         context_node = None
+
+#         if alias:
+#             alias_node, _ = NeoAlias.get_or_create(alias=alias)
+#             logger.info(f"Alias Node: {alias_node}")
+
+#         if context:
+#             context_node, _ = NeoContext.get_or_create(context=context)
+#             logger.info(f"Context Node: {context_node}")
+#         context_description_node, _ = NeoContextDescription.get_or_create(context_description=context_description, context_node=context_node)
+#         logger.info(f"Context Description Node: {context_description_node}")
+
+#         definition_node, _ = NeoDefinition.get_or_create(definition=definition)
+#         term_node = definition_node.term.single()
+#         if not term_node:
+#             context_node.alias.connect(alias_node)
+#             context_node.context_description.connect(context_description_node)
+#             context_node.definition.connect(definition_node)
+#             alias_node.context.connect(context_node)
+#             alias_node.collided_definition.connect(definition_node)
+#             definition_node.context.connect(context_node)
+#             definition_node.context_description.connect(context_description_node)
+#             return
+#         context_node.set_relationships(term_node=term_node, alias_node=alias_node, definition_node=definition_node, context_description_node=context_description_node)
+#         logger.info(f"Context Node Relationships: {context_node}")
+#         logger.info(f"Alias Node Relationships: {alias_node}")
+#         term_node.set_relationships(alias_node=alias_node, definition_node=definition_node, context_node=context_node)
+#         if alias_node:
+#             alias_node.set_relationships(term_node, context_node)
+#         definition_node.set_relationships(term_node, context_node, context_description_node)
+
+#     except Exception as e: 
+#         logger.error(f"Error in run_duplicate_definition_creation: {e}")
+#         raise e
+
 def run_duplicate_definition_creation(alias, definition, context, context_description):
     try:
-
-        alias_node = None
-        alias__ = False
-        if alias:
-            alias_node, _ = NeoAlias.get_or_create(alias=alias)
-            logger.info(f"Alias Node: {alias_node}")
-
-        context_node, _ = NeoContext.get_or_create(context=context)
-        logger.info(f"Context Node: {context_node}")
+        alias_node, _ = NeoAlias.get_or_create(alias=alias) if alias else (None, None)
+        context_node, _ = NeoContext.get_or_create(context=context) if context else (None, None)
         context_description_node, _ = NeoContextDescription.get_or_create(context_description=context_description, context_node=context_node)
-        logger.info(f"Context Description Node: {context_description_node}")
-
         definition_node, _ = NeoDefinition.get_or_create(definition=definition)
-        term_node = definition_node.term.single()
-        if not term_node:
-            context_node.alias.connect(alias_node)
-            context_node.context_description.connect(context_description_node)
-            context_node.definition.connect(definition_node)
-            alias_node.context.connect(context_node)
-            alias_node.collided_definition.connect(definition_node)
-            definition_node.context.connect(context_node)
-            definition_node.context_description.connect(context_description_node)
-            return
-        context_node.set_relationships(term_node=term_node, alias_node=alias_node, definition_node=definition_node, context_description_node=context_description_node)
-        logger.info(f"Context Node Relationships: {context_node}")
-        logger.info(f"Alias Node Relationships: {alias_node}")
-        term_node.set_relationships(alias_node=alias_node, definition_node=definition_node, context_node=context_node)
-        if alias_node:
-            alias_node.set_relationships(term_node, context_node)
-        definition_node.set_relationships(term_node, context_node, context_description_node)
 
-    except Exception as e: 
+        term_node = definition_node.term.single()
+
+        if not term_node:
+            # Collision scenario since no term node exists
+            # Use collision scenario methods
+            if alias_node:
+                alias_node.set_relationships(collided_definition=definition_node, context_node=context_node)
+            if context_node:
+                context_node.set_relationships(alias_node=alias_node, definition_node=definition_node, context_description_node=context_description_node)
+            definition_node.set_relationships(alias_node=alias_node, context_node=context_node, context_description_node=context_description_node)
+            context_description_node.set_relationships(definition_node=definition_node, context_node=context_node)
+            return
+
+        # Duplicate scenario with a term node (acts like unique scenario)
+        term_node.set_relationships(alias_node=alias_node, definition_node=definition_node, context_node=context_node)
+        context_node.set_relationships(term_node=term_node, alias_node=alias_node, definition_node=definition_node, context_description_node=context_description_node)
+        definition_node.set_relationships(term_node=term_node, context_node=context_node, context_description_node=context_description_node)
+        context_description_node.set_relationships(definition_node=definition_node, context_node=context_node)
+        
+        if alias_node:
+            alias_node.set_relationships(term_node=term_node, context_node=context_node)
+
+    except Exception as e:
         logger.error(f"Error in run_duplicate_definition_creation: {e}")
-        raise e
+        raise
 
 def run_collision_definition_creation(alias, most_similar_definition, definition, context, context_description, definition_vector_embedding, highest_score):
     try:

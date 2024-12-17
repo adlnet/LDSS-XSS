@@ -142,8 +142,8 @@ class TermAdmin(admin.ModelAdmin):
 class NeoTermAdminForm(forms.ModelForm):
     alias = forms.CharField(required=False, help_text="Enter alias")  # Custom field
     definition = forms.CharField(required=True, help_text="Enter definition")  # Custom field
-    context = forms.CharField(required=True, help_text="Enter context")  # Custom field
-    context_description = forms.CharField(required=True, help_text="Enter context description")  # Custom field
+    context = forms.CharField(required=False, help_text="Enter context")  # Custom field
+    context_description = forms.CharField(required=False, help_text="Enter context description")  # Custom field
 
     class Meta:
         model = NeoTerm
@@ -177,8 +177,12 @@ class NeoTermAdmin(admin.ModelAdmin):
             definition = form.cleaned_data['definition']
             context = form.cleaned_data['context']
             context_description = form.cleaned_data['context_description']
-            logger.info(f"Creating NeoTerm with alias: {alias}, definition: {definition}, context: {context}, context_description: {context_description}")
 
+
+            logger.info(f"Creating NeoTerm with alias: {alias}, definition: {definition}, context: {context}, context_description: {context_description}")
+            if context is None:
+                messages.warning(request, 'Adding an alias without a context is not recommended')
+                return
             run_node_creation(alias=alias, definition=definition, context=context, context_description=context_description)
 
             messages.success(request, 'NeoTerm saved successfully.')

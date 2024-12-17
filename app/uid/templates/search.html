@@ -88,7 +88,7 @@
         </form>
 
         <!-- Display search results -->
-        {% if results_data %}
+        {% if results.data %}
             <div class="results-list">
                 <h3>Search Results</h3>
                 <table>
@@ -101,12 +101,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for record in results_data %}
+                        {% for record in results.data %}
                             <tr>
-                                <td>{{ record.0 }}</td>  <!-- UID -->
-                                <td>{{ record.1 }}</td>  <!-- Alias -->
-                                <td>{{ record.2 }}</td>  <!-- Definition -->
-                                <td>{{ record.3|default:"No context" }}</td>  <!-- Context (with default fallback) -->
+                                <td class="result-item">{{ record.LCVID }}</td>  <!-- UID -->
+                                <td class="result-item">{{ record.Alias }}</td>  <!-- Alias -->
+                                <td class="result-item">{{ record.Definition }}</td>  <!-- Definition -->
+                                <td class="result-item">{{ record.Context|default:"No context" }}</td>  <!-- Context (with default fallback) -->
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -114,8 +114,8 @@
             </div>
         {% endif %}
 
-        {% if error %}
-            <p class="error-message">{{ error }}</p>
+        {% if results.error %}
+            <p class="error-message">{{ results.error }}</p>
         {% endif %}
     </div>
 </body>
