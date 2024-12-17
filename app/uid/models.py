@@ -7,6 +7,9 @@ from collections import defaultdict
 from typing import List
 from uuid import uuid4
 
+from collections import defaultdict
+# from core.models import NeoTerm
+
 logger = logging.getLogger(__name__)
 
 GLOBAL_PROVIDER_OWNER_UID = "0xFFFFFFFF"
@@ -22,6 +25,90 @@ def check_neo4j_connection():
         except Exception:
             time.sleep(1)  # Wait before retrying
     return False
+
+# Alias class incase you create and alias with no context
+# class Alias(StructuredNode):
+#     alias = StringProperty(unique_index=True)  # The alias name
+#     context = StringProperty(required=False, default=None)  # Optional context
+#     points_to = RelationshipTo('NeoTerm', 'POINTS_TO')  # The relationship to NeoTerm
+#     context_error = StringProperty(required=False)  # Optional field to store error message
+
+#     def __str__(self):
+#         return self.alias
+
+#     def link_to_term(self, neo_term):
+#         from core.models import NeoTerm, NeoAlias, NeoContext
+#         """Link this alias to a NeoTerm."""
+#         if isinstance(neo_term, NeoTerm):
+#             self.points_to.connect(neo_term)
+
+#     def save(self, *args, **kwargs):
+#         """Override the save method to automatically link the alias to a NeoTerm if context is provided."""
+#         context_error = None  # Initialize an error variable
+
+#         # Call the parent class save method
+#         super(Alias, self).save(*args, **kwargs)
+
+#         if self.context:
+#             from core.models import NeoTerm, NeoAlias, NeoContext
+#             term, created = NeoTerm.get_or_create(uid=self.context) # Get or create the NeoTerm based on the context
+#             if term:
+#                 # Set relationships for the NeoTerm, including the alias
+#                 term.set_relationships(definition_node, context_node, self)
+#             else:
+#                 context_error = f"No matching NeoTerm found for context: {self.context}"
+#         else:
+#             # If no context is provided, link to a default NeoTerm (first available NeoTerm)
+#             term = NeoTerm.nodes.first()  # You can change this to a specific fallback logic
+#             if term:
+#                 self.link_to_term(term)
+#             else:
+#                 context_error = "No NeoTerm available to link."
+
+#         # If an error was encountered, raise it so it can be caught in the view or returned to the form
+#         if context_error:
+#             self.context_error = context_error  # Store the error message in the instance
+#             self.save()
+        
+#         return context_error  # Return the error message, if any
+
+# Addition of the NeoAliasManager class to use NeoAlias in core/models
+class NeoAliasManager:
+    @staticmethod
+    def link_alias_to_term_and_context(alias: str, context: str = None):
+        from core.models import NeoTerm, NeoAlias, NeoContext
+        """Manage the linking of NeoAlias to NeoTerm and NeoContext."""
+        context_error = None
+
+        # Get or create the NeoAlias (same as get_or_create in your Alias class)
+        alias_node, created = NeoAlias.get_or_create(alias)
+
+        if context:
+            # If context is provided, attempt to get or create NeoContext
+            context_node, context_created = NeoContext.get_or_create(context)
+            if context_node:
+                # Link the alias to the context
+                alias_node.context.connect(context_node)
+            else:
+                context_error = f"No matching NeoContext found for context: {context}"
+
+        if not alias_node.term:
+            # If no term is linked, link the alias to the first available NeoTerm
+            term = NeoTerm.nodes.first()  # Fallback logic to link to the first available NeoTerm
+            if term:
+                alias_node.term.connect(term)
+            else:
+                context_error = context_error or "No NeoTerm available to link."
+
+        # Save the alias (optional)
+        alias_node.save()
+
+        # If any errors occurred, return the error message
+        if context_error:
+            alias_node.context_error = context_error  # Store error on the alias
+            alias_node.save()  # Save the alias again with the error information
+
+        return context_error  # Return the error message, if any
 
 # Generated Logs to track instance, time of generation, uid, provider and lcv terms
 class GeneratedUIDLog(models.Model):
