@@ -77,49 +77,9 @@ class LCVTermForm(forms.ModelForm):
 class SearchForm(forms.Form):
     search_term = forms.CharField(max_length=255, required=True, label="Search Term")
     search_type = forms.ChoiceField(choices=[
-        ('general', 'General Search'),
         ('alias', 'Search by Alias'),
         ('definition', 'Search by Definition'),
         ('context', 'Search by Context'),
     ], required=True, label="Search Type"
     )
     context = forms.CharField(label='Context', required=False, max_length=255)
-
-#class AliasForm(forms.Form):
- #   alias = forms.CharField(max_length=255, required=True)  # The alias name
-  #  context = forms.CharField(max_length=255, required=False)  # Context as a string (the term's name)
-
-   # def save(self):
-        # Create and save Alias
-    #    alias = Alias(alias=self.cleaned_data['alias'], context=self.cleaned_data.get('context'))
-     #   alias.save()
-
-        # Optionally, if context is provided, link to the NeoTerm
-      #  if alias.context:
-       #     term = NeoTerm.nodes.get_or_none(name=alias.context)
-        #    if term:
-         #       alias.link_to_term(term)  # Link this alias to the found NeoTerm
-
-        #return alias
-
-# class AliasForm(forms.Form):
-#     alias = forms.CharField(max_length=255, required=True)  # The alias name
-#     context = forms.CharField(max_length=255, required=False)  # Context as a string (the term's name)
-
-#     def save(self):
-#         from core.models import NeoAlias
-#         # Retrieve cleaned data
-#         alias_name = self.cleaned_data['alias']
-#         context = self.cleaned_data.get('context')
-
-#         # Use NeoAliasManager to create or link the alias
-#         context_error = NeoAliasManager.link_alias_to_term_and_context(alias_name, context)
-
-#         # Check if there were any errors while linking
-#         if context_error:
-#             raise forms.ValidationError(f"Error: {context_error}")
-
-#         # Optionally, you can also return the created or updated NeoAlias
-#         neo_alias, created = NeoAlias.get_or_create(alias=alias_name)
-        
-#         return neo_alias  # Return the created or linked NeoAlias instance

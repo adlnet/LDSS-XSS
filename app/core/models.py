@@ -622,7 +622,7 @@ class NeoDefinition(DjangoNode):
     rejected = BooleanProperty(default=False)
     context = RelationshipTo('NeoContext', 'VALID_IN')
     context_description = RelationshipFrom('NeoContextDescription', 'BASED_ON')
-    term = RelationshipFrom('NeoTerm', 'POINTS_TO')
+    term = Relationship('NeoTerm', 'POINTS_TO')
     collision = Relationship('NeoDefinition', 'IS_COLLIDING_WITH')
     collision_alias = Relationship('NeoAlias', 'WAS_ADDED_WITH')
     
@@ -642,6 +642,12 @@ class NeoDefinition(DjangoNode):
         except Exception as e:
             logger.error(f"Error in get for NeoDefinition '{definition}': {e}")
             raise e
+    
+    def get_term_node(self)-> 'NeoTerm':
+        if self.term:
+            logger.info(f'The data is: {self.term.single()}')
+            return self.term.single()
+        return None
     
     def set_relationships(self, term_node=None, context_node=None, context_description_node=None, collision=None, collision_alias=None):
         try:

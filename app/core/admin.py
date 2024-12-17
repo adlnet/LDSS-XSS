@@ -149,16 +149,6 @@ class NeoTermAdminForm(forms.ModelForm):
         model = NeoTerm
         fields = ['lcvid', 'alias', 'definition', 'context', 'context_description']
 
-    # def clean_definition(self):
-    #     definition = self.cleaned_data.get('definition')
-
-    #     get_terms_with_multiple_definitions()
-    #     # Check if the definition already exists in the NeoDefinition model
-    #     if is_any_node_present(NeoDefinition, definition=definition):
-    #         raise forms.ValidationError(f"A definition of '{definition}' already exists.")
-        
-    #     return definition  # Return the cleaned value
-
 class NeoTermAdmin(admin.ModelAdmin):
     form = NeoTermAdminForm
     list_display = ('lcvid', 'uid')
@@ -180,8 +170,13 @@ class NeoTermAdmin(admin.ModelAdmin):
 
 
             logger.info(f"Creating NeoTerm with alias: {alias}, definition: {definition}, context: {context}, context_description: {context_description}")
-            if context is None:
-                messages.warning(request, 'Adding an alias without a context is not recommended')
+            if context == '' and context_description == '' and alias != '':
+                definition_node = NeoDefinition.nodes.get_or_none(definition=definition)
+                if definition_node:
+                    messages.warning(request, 'Adding an alias without a context is not recommended.')
+                    run_node_creation(alias=alias, definition=definition, context=context, context_description=context_description)
+                    return
+                messages.error(request, 'Adding a definition without a context is not allowed.')
                 return
             run_node_creation(alias=alias, definition=definition, context=context, context_description=context_description)
 
@@ -191,7 +186,6 @@ class NeoTermAdmin(admin.ModelAdmin):
             logger.error('Error saving NeoTerm: {}'.format(e))
             messages.error(request, 'Error saving NeoTerm: {}'.format(e))
             return
-    
 
     def delete_model(self, request, obj) -> None:
         messages.error(request, 'Deleting terms is not allowed')
