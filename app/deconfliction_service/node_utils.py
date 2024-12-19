@@ -33,8 +33,6 @@ def generate_embedding(text: str) -> list:
     :param text: The text to generate an embedding for.
     :return: The sentence embedding as a numpy array.
     """
-    logger.info(f"Generating embedding for text: {text}")
-    logger.info(len(model.encode(text).tolist()))
     return model.encode(text).tolist()
 
 def get_terms_with_multiple_definitions():

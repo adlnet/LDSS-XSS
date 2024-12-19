@@ -24,24 +24,8 @@ class CCVDataIngest(APIView):
             definition = data.get('definition')
             lcvid = data.get('lcvid')
             parent_id = data.get('uid_chain')
-            logger.info(definition)
-            logger.info(lcvid)
-            logger.info(parent_id)
+            
             run_ccv_node_creation(definition, lcvid, parent_id)
-            # logger.info(data)
-            # for obj in data:
-            #     lcvid = obj.get('lcvid')
-            #     definition = obj.get('definition')
-            #     parent_id = obj.get('parent_id')
-
-            #     if not all([lcvid, parent_id, definition]):
-            #         return JsonResponse({'error': 'Invalid JSON format'}, status=400)
-                
-            #     run_ccv_node_creation(definition, lcvid, parent_id)
-                
-
-            # for term, definition in lcv_data:
-            #     pass
             return JsonResponse({'message': 'Data successfully ingested'}, status=200)
 
         except Exception as e:

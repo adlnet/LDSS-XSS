@@ -65,8 +65,6 @@ services:
       HF_HOME: "${HF_HOME}"
       HF_DATASETS_CACHE: "${HF_DATASETS_CACHE}"
       IS_CCV: True
-    volumes:
-      - ./app:/opt/app/openlxp-xss
     depends_on:
       db-xss:
         condition: service_healthy
@@ -74,10 +72,6 @@ services:
         condition: service_healthy
     networks:
       - openlxp
-
-volumes:
-  huggingface_data:
-    driver: local
 
 networks:
   openlxp:

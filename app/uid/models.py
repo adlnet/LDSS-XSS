@@ -375,73 +375,73 @@ class UIDRequestNode(DjangoNode):
         
         return requested_node
     
-# LCV Terms model for DjangoNode
-class LCVTerm(DjangoNode):
-    default_uid = StringProperty(required=True)
-    default_uid_chain = StringProperty(default="")
+# # LCV Terms model for DjangoNode
+# class LCVTerm(DjangoNode):
+#     default_uid = StringProperty(required=True)
+#     default_uid_chain = StringProperty(default="")
 
-    term = StringProperty(required=True)
-    ld_lcv_structure = StringProperty()
-    echelon_level = StringProperty(required=True)  # Required for echelon check
+#     term = StringProperty(required=True)
+#     ld_lcv_structure = StringProperty()
+#     echelon_level = StringProperty(required=True)  # Required for echelon check
 
-    uid = RelationshipTo('UIDNode', 'HAS_UID')
-    provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
+#     uid = RelationshipTo('UIDNode', 'HAS_UID')
+#     provider = RelationshipFrom('Provider', 'HAS_LCV_TERM')
 
-    class Meta:
-        app_label = 'uid'
+#     class Meta:
+#         app_label = 'uid'
 
-    @classmethod
-    def create_term(cls, provider_name: str, term: str, structure: str, echelon_level: str):
+#     @classmethod
+#     def create_term(cls, provider_name: str, term: str, structure: str, echelon_level: str):
         
-        provider = Provider.get_provider_by_name(provider_name)
-        assert isinstance(provider, Provider)
+#         provider = Provider.get_provider_by_name(provider_name)
+#         assert isinstance(provider, Provider)
                 
-        uid_node = UIDNode.create_node(
-            owner_uid=provider.default_uid
-        )
+#         uid_node = UIDNode.create_node(
+#             owner_uid=provider.default_uid
+#         )
 
-        lcv_term = LCVTerm(term=term, echelon_level=echelon_level, ld_lcv_structure=structure)
-        lcv_term.default_uid = uid_node.uid
-        lcv_term.default_uid_chain = f"{provider.default_uid}-{uid_node.uid}" 
-        lcv_term.save()
-        lcv_term.uid.connect(uid_node)
-        lcv_term.provider.connect(provider)
-        lcv_term.save()
+#         lcv_term = LCVTerm(term=term, echelon_level=echelon_level, ld_lcv_structure=structure)
+#         lcv_term.default_uid = uid_node.uid
+#         lcv_term.default_uid_chain = f"{provider.default_uid}-{uid_node.uid}" 
+#         lcv_term.save()
+#         lcv_term.uid.connect(uid_node)
+#         lcv_term.provider.connect(provider)
+#         lcv_term.save()
         
-        return lcv_term
+#         return lcv_term
     
-    def get_current_local_uid_chain(self):
+#     def get_current_local_uid_chain(self):
 
-        current_uid = self.default_uid
-        current_uid_node = self.uid.end_node()
-        if self.uid.end_node() is not None:
-            current_uid = current_uid_node.uid
+#         current_uid = self.default_uid
+#         current_uid_node = self.uid.end_node()
+#         if self.uid.end_node() is not None:
+#             current_uid = current_uid_node.uid
         
-        current_provider_uid = ""
-        current_provider_node = self.provider.start_node()
-        if current_provider_node is None:
-            assert isinstance(current_provider_node, Provider)
-            current_provider_uid = current_provider_node.get_current_uid()
+#         current_provider_uid = ""
+#         current_provider_node = self.provider.start_node()
+#         if current_provider_node is None:
+#             assert isinstance(current_provider_node, Provider)
+#             current_provider_uid = current_provider_node.get_current_uid()
         
-        return f"{current_provider_uid}-{current_uid}"
+#         return f"{current_provider_uid}-{current_uid}"
 
 # Django LCVTerm Model for Admin
-class LCVTermDjangoModel(models.Model):
-    # uid = models.CharField(max_length=255, unique=True)
-    provider_name = models.CharField(max_length=255)
-    term = models.CharField(max_length=255)
-    echelon = models.CharField(max_length=255)
-    structure = models.CharField(max_length=255)
+# class LCVTermDjangoModel(models.Model):
+#     # uid = models.CharField(max_length=255, unique=True)
+#     provider_name = models.CharField(max_length=255)
+#     term = models.CharField(max_length=255)
+#     echelon = models.CharField(max_length=255)
+#     structure = models.CharField(max_length=255)
 
-    def save(self, *args, **kwargs):
-        # Create or update the Neo4j LCVTerm node
-        lcv_term = LCVTerm.create_term(provider_name=self.provider_name, term=self.term, echelon_level=self.echelon, structure=self.structure)
-        lcv_term.save()
-        super().save(*args, **kwargs)
+#     def save(self, *args, **kwargs):
+#         # Create or update the Neo4j LCVTerm node
+#         lcv_term = LCVTerm.create_term(provider_name=self.provider_name, term=self.term, echelon_level=self.echelon, structure=self.structure)
+#         lcv_term.save()
+#         super().save(*args, **kwargs)
 
-    class Meta:
-        verbose_name = "LCV Term"
-        verbose_name_plural = "LCV Terms"
+#     class Meta:
+#         verbose_name = "LCV Term"
+#         verbose_name_plural = "LCV Terms"
 
 # # LanguageSet now a Node
 # class LanguageSet(StructuredNode):
